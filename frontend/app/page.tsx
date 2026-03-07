@@ -57,7 +57,7 @@ export default function LandingPage() {
           <div className="flex items-center gap-6">
             <a href="#features" className="text-sm font-medium text-gray-400 hover:text-white transition-colors hidden md:block">Features</a>
             <a href="#security" className="text-sm font-medium text-gray-400 hover:text-white transition-colors hidden md:block">Security</a>
-            <a href="https://github.com/shashwat" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors hidden sm:block">
+            <a href="https://github.com/shashwatology/SarSh" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors hidden sm:block">
               <Github size={22} />
             </a>
             {!loading && (
@@ -267,7 +267,7 @@ export default function LandingPage() {
               <Image src="/sarsh-logo.png" alt="Sarsh" fill className="object-cover scale-[0.7]" />
             </div>
             <span className="font-bold text-xl text-white">Sarsh</span>
-            <a href="https://github.com/shashwatology" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors hidden sm:block">
+            <a href="https://github.com/shashwatology/SarSh" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors hidden sm:block">
               <Github size={22} />
             </a>
             <span className="text-gray-500 text-sm ml-2">© 2026. All rights reserved.</span>
@@ -275,7 +275,7 @@ export default function LandingPage() {
           <div className="flex gap-8 text-sm text-gray-500 font-medium">
             <button className="hover:text-white transition-colors">Privacy Policy</button>
             <button className="hover:text-white transition-colors">Terms of Service</button>
-            <a href="https://github.com/shashwatology" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">GitHub</a>
+            <a href="https://github.com/shashwatology/SarSh" target="_blank" rel="noreferrer" className="hover:text-white transition-colors">GitHub</a>
           </div>
         </div>
       </footer>
