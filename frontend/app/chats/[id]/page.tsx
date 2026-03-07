@@ -5,7 +5,7 @@ import { useAuth, api } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
 import { useCall } from '@/context/CallContext';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Image as ImageIcon, Check, CheckCheck, ChevronDown, Edit2, Trash2, X, Mic, Square, Paperclip, FileText, Palette, Users, User as UserIcon, Reply, Forward, Phone, Video, PenTool, Eraser } from 'lucide-react';
+import { ArrowLeft, Send, Image as ImageIcon, Check, CheckCheck, ChevronDown, Edit2, Trash2, X, Mic, Square, Paperclip, FileText, Palette, Users, User as UserIcon, Reply, Forward, Phone, Video, PenTool, Eraser, Grid } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ChatScreen() {
@@ -31,6 +31,7 @@ export default function ChatScreen() {
 
     // Canvas State
     const [showCanvas, setShowCanvas] = useState(false);
+    const [canvasInvite, setCanvasInvite] = useState<any>(null);
     const [isPainting, setIsPainting] = useState(false);
     const [brushColor, setBrushColor] = useState('#ffffff');
     const [brushSize, setBrushSize] = useState(3);
@@ -137,14 +138,10 @@ export default function ChatScreen() {
             }));
         });
 
-        socket.on('start_drawing', () => {
-            setShowCanvas(true);
-            setTimeout(() => {
-                if (canvasRef.current) {
-                    canvasRef.current.width = window.innerWidth;
-                    canvasRef.current.height = window.innerHeight;
-                }
-            }, 100);
+        socket.on('start_drawing', (data: any) => {
+            if (data.senderId && data.senderId !== user.id) {
+                setCanvasInvite({ senderId: data.senderId, senderName: data.senderName || 'Your friend' });
+            }
         });
 
         socket.on('drawing_path', (data: any) => {
@@ -178,6 +175,11 @@ export default function ChatScreen() {
 
         socket.on('end_drawing', () => {
             setShowCanvas(false);
+            setCanvasInvite(null);
+        });
+
+        socket.on('draw_grid', () => {
+            drawTicTacToeGridLocally();
         });
 
         return () => {
@@ -193,6 +195,7 @@ export default function ChatScreen() {
             socket.off('drawing_path');
             socket.off('clear_canvas');
             socket.off('end_drawing');
+            socket.off('draw_grid');
         };
     }, [socket, id, user]);
 
@@ -403,7 +406,7 @@ export default function ChatScreen() {
 
     // --- CANVAS LOGIC ---
     const initCanvas = () => {
-        socket?.emit('start_drawing', { chatId: String(id) });
+        socket?.emit('start_drawing', { chatId: String(id), senderId: user?.id, senderName: user?.username });
         setShowCanvas(true);
         setTimeout(() => {
             const canvas = canvasRef.current;
@@ -513,6 +516,42 @@ export default function ChatScreen() {
                 console.error(err);
             }
         }, 'image/png');
+    };
+
+    const drawTicTacToeGridLocally = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const size = Math.min(canvas.width, canvas.height) * 0.7;
+        const startX = (canvas.width - size) / 2;
+        const startY = (canvas.height - size) / 2;
+        const third = size / 3;
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+
+        // Vertical lines
+        ctx.moveTo(startX + third, startY);
+        ctx.lineTo(startX + third, startY + size);
+        ctx.moveTo(startX + 2 * third, startY);
+        ctx.lineTo(startX + 2 * third, startY + size);
+
+        // Horizontal lines
+        ctx.moveTo(startX, startY + third);
+        ctx.lineTo(startX + size, startY + third);
+        ctx.moveTo(startX, startY + 2 * third);
+        ctx.lineTo(startX + size, startY + 2 * third);
+
+        ctx.stroke();
+    };
+
+    const drawTicTacToeGrid = () => {
+        drawTicTacToeGridLocally();
+        socket?.emit('draw_grid', { chatId: String(id) });
     };
 
     return (
@@ -771,6 +810,38 @@ export default function ChatScreen() {
                     </div>
                 )}
 
+                {canvasInvite && (
+                    <div className="bg-[var(--color-brand-primary)]/20 border border-[var(--color-brand-primary)]/50 rounded-2xl mx-2 mb-3 p-3 flex items-center justify-between backdrop-blur-md shadow-lg animate-pulse">
+                        <div className="flex items-center text-white">
+                            <PenTool size={20} className="mr-3 flex-shrink-0 text-[var(--color-brand-primary)]" />
+                            <span className="text-sm"><strong>{canvasInvite.senderName}</strong> wants to doodle with you!</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => {
+                                    setShowCanvas(true);
+                                    setCanvasInvite(null);
+                                    setTimeout(() => {
+                                        if (canvasRef.current) {
+                                            canvasRef.current.width = window.innerWidth;
+                                            canvasRef.current.height = window.innerHeight;
+                                        }
+                                    }, 100);
+                                }}
+                                className="bg-[var(--color-brand-primary)] text-white px-4 py-1.5 rounded-full text-sm font-semibold hover:opacity-90 transition-opacity"
+                            >
+                                Join
+                            </button>
+                            <button
+                                onClick={() => setCanvasInvite(null)}
+                                className="bg-white/10 text-white p-1.5 rounded-full hover:bg-white/20 transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex items-end w-full">
                     {isRecording ? (
                         <div className="flex-1 flex items-center justify-between mx-2 bg-red-500/10 rounded-3xl px-4 py-2.5 border border-red-500/20 min-h-[44px]">
@@ -878,6 +949,9 @@ export default function ChatScreen() {
                             <div className="w-[1px] h-8 bg-white/10"></div>
                             <button onClick={() => setBrushColor('#000000')} className={`p-2 rounded-full transition-colors ${brushColor === '#000000' ? 'bg-white/20' : 'hover:bg-white/10 opacity-70 hover:opacity-100'}`} title="Eraser">
                                 <Eraser size={22} className="text-white" />
+                            </button>
+                            <button onClick={drawTicTacToeGrid} className="p-2 rounded-full hover:bg-white/10 text-white transition-colors opacity-80 hover:opacity-100" title="Tic-Tac-Toe Grid">
+                                <Grid size={22} />
                             </button>
                             <button onClick={clearCanvas} className="p-2 rounded-full hover:bg-red-500/20 text-red-400 transition-colors opacity-80 hover:opacity-100" title="Clear Canvas">
                                 <Trash2 size={22} />

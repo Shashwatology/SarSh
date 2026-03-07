@@ -166,6 +166,10 @@ io.on('connection', (socket) => {
         io.to(String(data.chatId)).emit('end_drawing', data);
     });
 
+    socket.on('draw_grid', (data) => {
+        socket.to(String(data.chatId)).emit('draw_grid', data);
+    });
+
     // Handle message delivery ACK
     socket.on('message_delivered', async (data) => {
         try {
