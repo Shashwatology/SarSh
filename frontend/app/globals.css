@@ -1,0 +1,78 @@
+@import 'tailwindcss';
+
+:root {
+  /* Sarsh India-Inspired Theme (Dark Black Theme) */
+  --color-brand-primary: #1e40af;
+  /* Deep Blue */
+  --color-brand-dark: #1e3a8a;
+  --color-brand-light: #3b82f6;
+  --color-brand-accent: #f97316;
+  /* Saffron Accent */
+
+  --color-brand-bg: #000000;
+  /* Deep Black Background */
+  --color-brand-surface: #111111;
+  /* Dark Charcoal Surface */
+  --color-brand-border: #222222;
+
+  /* Default Theme Bubbles */
+  --color-brand-bubble-me: #1e40af;
+  /* Deep blue for sender */
+  --color-brand-bubble-other: #262626;
+  /* Dark gray for receiver */
+
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a1a1aa;
+  --color-text-inverse: #000000;
+}
+
+/* Instagram Gradient Theme */
+.theme-instagram {
+  --color-brand-bubble-me: #E1306C;
+  --color-brand-primary: #E1306C;
+}
+
+/* Hacker Green Theme */
+.theme-hacker {
+  --color-brand-bubble-me: #00ff00;
+  --color-brand-primary: #00ff00;
+  /* Darker background for text inside the bubble to stay readable if it's black text */
+}
+
+/* Rose / Sunset Theme */
+.theme-rose {
+  --color-brand-bubble-me: #FF3B30;
+  --color-brand-primary: #FF3B30;
+}
+
+/* Ocean Blue */
+.theme-ocean {
+  --color-brand-bubble-me: #32ADE6;
+  --color-brand-primary: #32ADE6;
+}
+
+body {
+  background-color: var(--color-brand-bg);
+  color: var(--color-text-primary);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: -0.01em;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom Scrollbar for chat */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
