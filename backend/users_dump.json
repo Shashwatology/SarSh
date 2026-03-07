@@ -1,0 +1,51 @@
+[
+  {
+    "id": 1,
+    "username": "shashwat",
+    "phone": "9372091546",
+    "email": "shashwatnitw@gmail.com",
+    "password_hash": "$2b$10$i6ik5M3ZEqeX9vrweUJ4R.3dx6HuZegCXTwSVcCK340n4R51q/iZO"
+  },
+  {
+    "id": 2,
+    "username": "alice",
+    "phone": "1111111111",
+    "email": "alice@example.com",
+    "password_hash": "$2b$10$aX17DTyOA3grSU2r3s0TX.tnqBUCsq4dknfm.WCkg6.WjE0x0TGoC"
+  },
+  {
+    "id": 3,
+    "username": "bob",
+    "phone": "2222222222",
+    "email": "bob@example.com",
+    "password_hash": "$2b$10$1wP7wP9JUROiHT.TwHd9WeesBtyESfaiVLNfSNdZbT4muRC1Lcobm"
+  },
+  {
+    "id": 4,
+    "username": "charlie",
+    "phone": "3333333333",
+    "email": "charlie@example.com",
+    "password_hash": "$2b$10$16uJGqfsCB5sKYo.ePZkVeQv2280WthpdFqnfkTcBpbXmkO9B8vsC"
+  },
+  {
+    "id": 5,
+    "username": "david",
+    "phone": "4444444444",
+    "email": "david@example.com",
+    "password_hash": "$2b$10$uDp7yvSdFvuCo3FL5Km7ae2LvnKhtkgsjYP86y8UYx5kulkTv/n3e"
+  },
+  {
+    "id": 6,
+    "username": "eve",
+    "phone": "5555555555",
+    "email": "eve@example.com",
+    "password_hash": "$2b$10$P1HI5eFV.j/.sv7Y36fSBu8pnASYmpSjMoiDigRZbWh6NZMz64ovy"
+  },
+  {
+    "id": 7,
+    "username": "frank",
+    "phone": "6666666666",
+    "email": "frank@example.com",
+    "password_hash": "$2b$10$qS6dSbHj3YK.1prZXooZP.KVzOsRrCzu2odGGdkGaSag.pOliQ3He"
+  }
+]

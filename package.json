@@ -1,0 +1,16 @@
+{
+    "name": "chat-app-workspace",
+    "version": "1.0.0",
+    "description": "WhatsApp Clone Workspace",
+    "scripts": {
+        "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+        "dev:backend": "cd backend && npm run dev",
+        "dev:frontend": "cd frontend && npm run dev",
+        "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+        "db:up": "docker-compose up -d",
+        "db:down": "docker-compose down"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}
