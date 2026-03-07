@@ -18,20 +18,35 @@ export default function ProfilePage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image too large. Please choose an image under 5MB.');
+            return;
+        }
+
         setIsUploading(true);
         const formData = new FormData();
         formData.append('image', file);
 
         try {
-            const res = await api.post('/upload/profile-picture', formData);
+            const res = await api.post('/upload/profile-picture', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
 
-            // Reload user session to get new image
-            await checkAuth();
-        } catch (err) {
+            if (res.data?.profile_picture) {
+                // Update user in localStorage and state immediately
+                const updatedUser = { ...user, profile_picture: res.data.profile_picture };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                await checkAuth();
+            }
+        } catch (err: any) {
             console.error('Failed to upload profile picture', err);
-            alert('Failed to upload image. Please try again.');
+            const msg = err?.response?.data?.details || err?.response?.data?.error || err?.response?.data?.msg || 'Failed to upload image. Check your internet connection and try again.';
+            alert(msg);
         } finally {
             setIsUploading(false);
+            // Reset file input so same file can be re-selected
+            if (fileInputRef.current) fileInputRef.current.value = '';
         }
     };
 
