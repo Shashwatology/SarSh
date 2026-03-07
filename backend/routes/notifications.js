@@ -4,12 +4,14 @@ const pool = require('../config/db');
 const webpush = require('web-push');
 const jwt = require('jsonwebtoken');
 
-// Configure web-push with VAPID keys
-webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT,
-    process.env.VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-);
+// Configure web-push with VAPID keys (only if provided)
+if (process.env.VAPID_SUBJECT && process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(
+        process.env.VAPID_SUBJECT,
+        process.env.VAPID_PUBLIC_KEY,
+        process.env.VAPID_PRIVATE_KEY
+    );
+}
 
 // Middleware to authenticate JWT
 const authenticateToken = (req, res, next) => {
