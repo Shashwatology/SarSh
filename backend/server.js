@@ -15,15 +15,15 @@ const allowedOrigins = process.env.FRONTEND_URL
 
 const io = new Server(server, {
     cors: {
-        origin: allowedOrigins,
+        origin: "*",
         methods: ['GET', 'POST'],
         credentials: true
     }
 });
 
 app.use(cors({
-    origin: allowedOrigins,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    origin: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
