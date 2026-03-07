@@ -372,23 +372,40 @@ export default function ChatScreen() {
         }
     };
 
-    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
+    const uploadFileDirectly = async (file: File) => {
         const formData = new FormData();
         formData.append('image', file);
 
         try {
             const uploadRes = await api.post('/upload', formData);
-
             const { mediaUrl, mediaType } = uploadRes.data;
             const res = await api.post('/messages', { chatId: id, content: '', mediaUrl, mediaType });
 
             setMessages((prev) => [...prev, res.data]);
             socket?.emit('send_message', res.data);
         } catch (err) {
-            console.error(err);
+            console.error('Image upload failed:', err);
+        }
+    };
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) await uploadFileDirectly(file);
+    };
+
+    const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image/') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    e.preventDefault();
+                    await uploadFileDirectly(file);
+                    break;
+                }
+            }
         }
     };
 
@@ -799,7 +816,7 @@ export default function ChatScreen() {
             )}
 
             {/* Input Area */}
-            <div className="backdrop-blur-2xl bg-[var(--color-brand-bg)]/60 px-4 py-3 pb-6 flex flex-col z-20 w-full border-t border-[var(--color-brand-border)] relative shadow-2xl">
+            <div className="backdrop-blur-2xl bg-[var(--color-brand-bg)]/80 px-2 sm:px-4 py-2 sm:py-3 pb-4 sm:pb-6 flex flex-col z-20 w-full border-t border-[var(--color-brand-border)] relative shadow-2xl">
                 {replyingTo && (
                     <div className="flex items-center justify-between bg-black/40 rounded-t-2xl px-4 py-2 mb-2 border-l-4 border-[var(--color-brand-primary)] text-sm shadow-md">
                         <div>
@@ -853,25 +870,26 @@ export default function ChatScreen() {
                         </div>
                     ) : (
                         <>
-                            <button onClick={initCanvas} className="text-[var(--color-brand-primary)] hover:opacity-80 p-2 rounded-full transition-opacity mb-0.5" title="Canvas Scratchpad">
-                                <PenTool size={24} />
+                            <button onClick={initCanvas} className="text-[var(--color-brand-primary)] hover:opacity-80 p-1.5 sm:p-2 rounded-full transition-opacity mb-0.5" title="Canvas Scratchpad">
+                                <PenTool size={22} className="sm:w-6 sm:h-6" />
                             </button>
-                            <button onClick={() => documentInputRef.current?.click()} className="text-[var(--color-brand-primary)] hover:opacity-80 p-2 rounded-full transition-opacity mb-0.5">
-                                <Paperclip size={24} />
+                            <button onClick={() => documentInputRef.current?.click()} className="text-[var(--color-brand-primary)] hover:opacity-80 p-1.5 sm:p-2 rounded-full transition-opacity mb-0.5" title="Attach Document">
+                                <Paperclip size={22} className="sm:w-6 sm:h-6" />
                                 <input type="file" ref={documentInputRef} className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload} />
                             </button>
-                            <button onClick={() => fileInputRef.current?.click()} className="text-[var(--color-brand-primary)] hover:opacity-80 p-2 rounded-full transition-opacity mb-0.5">
-                                <ImageIcon size={24} />
+                            <button onClick={() => fileInputRef.current?.click()} className="text-[var(--color-brand-primary)] hover:opacity-80 p-1.5 sm:p-2 rounded-full transition-opacity mb-0.5" title="Attach Image">
+                                <ImageIcon size={22} className="sm:w-6 sm:h-6" />
                                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                             </button>
-                            <form onSubmit={handleSendMessage} className="flex-1 flex mx-1">
-                                <div className="w-full bg-white/5 backdrop-blur-md rounded-3xl px-5 py-2.5 shadow-inner border border-white/10 flex items-center min-h-[44px] transition-colors focus-within:bg-white/10 focus-within:border-white/20">
+                            <form onSubmit={handleSendMessage} className="flex-1 flex ml-1">
+                                <div className="w-full bg-white/5 backdrop-blur-md rounded-3xl px-4 py-2 sm:px-5 sm:py-2.5 shadow-inner border border-white/10 flex items-center min-h-[40px] sm:min-h-[44px] transition-colors focus-within:bg-white/10 focus-within:border-white/20">
                                     <input
                                         type="text"
                                         value={newMessage}
                                         onChange={handleTyping}
-                                        placeholder={editingMessage ? "Edit message..." : "Message..."}
-                                        className="flex-1 outline-none text-white bg-transparent placeholder-[#8E8E93] text-[15px]"
+                                        onPaste={handlePaste}
+                                        placeholder={editingMessage ? "Edit message..." : "Message (paste image here)..."}
+                                        className="flex-1 outline-none text-white bg-transparent placeholder-[#8E8E93] text-[14px] sm:text-[15px]"
                                     />
                                     {editingMessage && (
                                         <button
@@ -934,35 +952,35 @@ export default function ChatScreen() {
                     </div>
 
                     {/* Bottom Toolbar */}
-                    <div className="pointer-events-none absolute bottom-8 w-full flex justify-center z-10">
-                        <div className="pointer-events-auto bg-[#2C2C2E] border border-[#38383A] rounded-full px-5 py-3 flex items-center gap-4 shadow-2xl backdrop-blur-xl">
-                            <div className="flex gap-2">
+                    <div className="pointer-events-none absolute bottom-6 sm:bottom-8 w-full flex justify-center z-10 px-2">
+                        <div className="pointer-events-auto bg-[#2C2C2E] border border-[#38383A] rounded-full px-3 sm:px-5 py-2 sm:py-3 flex items-center gap-2 sm:gap-4 shadow-2xl backdrop-blur-xl max-w-full overflow-x-auto hide-scrollbar">
+                            <div className="flex gap-1.5 sm:gap-2 flex-shrink-0 items-center">
                                 {['#ffffff', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#AF52DE'].map(color => (
                                     <button
                                         key={color}
                                         onClick={() => setBrushColor(color)}
-                                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 transition-transform ${brushColor === color ? 'scale-110 border-white shadow-lg' : 'border-transparent scale-90 opacity-80 hover:opacity-100'}`}
+                                        className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 transition-transform flex-shrink-0 ${brushColor === color ? 'scale-110 border-white shadow-lg' : 'border-transparent scale-90 opacity-80 hover:opacity-100'}`}
                                         style={{ backgroundColor: color }}
                                     />
                                 ))}
                             </div>
-                            <div className="w-[1px] h-8 bg-white/10"></div>
-                            <button onClick={() => setBrushColor('#000000')} className={`p-2 rounded-full transition-colors ${brushColor === '#000000' ? 'bg-white/20' : 'hover:bg-white/10 opacity-70 hover:opacity-100'}`} title="Eraser">
-                                <Eraser size={22} className="text-white" />
+                            <div className="w-[1px] h-6 sm:h-8 bg-white/10 flex-shrink-0"></div>
+                            <button onClick={() => setBrushColor('#000000')} className={`p-1.5 sm:p-2 rounded-full transition-colors flex-shrink-0 ${brushColor === '#000000' ? 'bg-white/20' : 'hover:bg-white/10 opacity-70 hover:opacity-100'}`} title="Eraser">
+                                <Eraser size={18} className="sm:w-[22px] sm:h-[22px] text-white" />
                             </button>
-                            <button onClick={drawTicTacToeGrid} className="p-2 rounded-full hover:bg-white/10 text-white transition-colors opacity-80 hover:opacity-100" title="Tic-Tac-Toe Grid">
-                                <Grid size={22} />
+                            <button onClick={drawTicTacToeGrid} className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 text-white transition-colors opacity-80 hover:opacity-100 flex-shrink-0" title="Tic-Tac-Toe Grid">
+                                <Grid size={18} className="sm:w-[22px] sm:h-[22px]" />
                             </button>
-                            <button onClick={clearCanvas} className="p-2 rounded-full hover:bg-red-500/20 text-red-400 transition-colors opacity-80 hover:opacity-100" title="Clear Canvas">
-                                <Trash2 size={22} />
+                            <button onClick={clearCanvas} className="p-1.5 sm:p-2 rounded-full hover:bg-red-500/20 text-red-400 transition-colors opacity-80 hover:opacity-100 flex-shrink-0" title="Clear Canvas">
+                                <Trash2 size={18} className="sm:w-[22px] sm:h-[22px]" />
                             </button>
-                            <div className="w-[1px] h-8 bg-white/10 hidden sm:block"></div>
+                            <div className="w-[1px] h-6 sm:h-8 bg-white/10 hidden sm:block flex-shrink-0"></div>
                             <input
                                 type="range"
                                 min="1" max="25"
                                 value={brushSize}
                                 onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                                className="w-20 sm:w-24 accent-[var(--color-brand-primary)] hidden sm:block"
+                                className="w-16 sm:w-24 accent-[var(--color-brand-primary)] hidden sm:block flex-shrink-0"
                             />
                         </div>
                     </div>
