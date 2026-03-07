@@ -33,3 +33,5 @@ Sarsh is a modern, privacy-focused messaging platform built for real connections
 
 ---
 "Private Conversations. Real Connections."
+
+[View on GitHub](https://github.com/shashwatology/SarSh)
