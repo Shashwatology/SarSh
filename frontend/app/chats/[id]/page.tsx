@@ -5,7 +5,7 @@ import { useAuth, api } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
 import { useCall } from '@/context/CallContext';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Image as ImageIcon, Check, CheckCheck, ChevronDown, Edit2, Trash2, X, Mic, Square, Paperclip, FileText, Palette, Users, User as UserIcon, Reply, Forward, Phone, Video, PenTool, Eraser, Grid } from 'lucide-react';
+import { ArrowLeft, Send, Image as ImageIcon, Check, CheckCheck, ChevronDown, Edit2, Trash2, X, Mic, Square, Paperclip, FileText, Palette, Users, User as UserIcon, Reply, Forward, Phone, Video, PenTool, Eraser, Grid, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ChatScreen() {
@@ -28,6 +28,7 @@ export default function ChatScreen() {
     const [showThemePicker, setShowThemePicker] = useState(false);
     const [showForwardModal, setShowForwardModal] = useState<any>(null); // holds message to forward
     const [allChats, setAllChats] = useState<any[]>([]);
+    const [showAttachments, setShowAttachments] = useState(false);
 
     // Canvas State
     const [showCanvas, setShowCanvas] = useState(false);
@@ -610,15 +611,15 @@ export default function ChatScreen() {
                         <>
                             <button
                                 onClick={() => callUser(currentChat?.other_user_id || Number(id), false, currentChat?.username)}
-                                className="p-2 rounded-full hover:bg-white/10 text-[var(--color-brand-primary)] transition-colors hidden sm:block"
+                                className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 text-[var(--color-brand-primary)] transition-colors"
                             >
-                                <Phone size={20} />
+                                <Phone size={20} className="w-5 h-5 sm:w-5 sm:h-5" />
                             </button>
                             <button
                                 onClick={() => callUser(currentChat?.other_user_id || Number(id), true, currentChat?.username)}
-                                className="p-2 rounded-full hover:bg-white/10 text-[var(--color-brand-primary)] transition-colors hidden sm:block mr-1"
+                                className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 text-[var(--color-brand-primary)] transition-colors mr-0.5"
                             >
-                                <Video size={22} />
+                                <Video size={22} className="w-5 h-5 sm:w-6 sm:h-6" />
                             </button>
                         </>
                     )}
@@ -870,17 +871,30 @@ export default function ChatScreen() {
                         </div>
                     ) : (
                         <>
-                            <button onClick={initCanvas} className="text-[var(--color-brand-primary)] hover:opacity-80 p-1.5 sm:p-2 rounded-full transition-opacity mb-0.5" title="Canvas Scratchpad">
-                                <PenTool size={22} className="sm:w-6 sm:h-6" />
-                            </button>
-                            <button onClick={() => documentInputRef.current?.click()} className="text-[var(--color-brand-primary)] hover:opacity-80 p-1.5 sm:p-2 rounded-full transition-opacity mb-0.5" title="Attach Document">
-                                <Paperclip size={22} className="sm:w-6 sm:h-6" />
-                                <input type="file" ref={documentInputRef} className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload} />
-                            </button>
-                            <button onClick={() => fileInputRef.current?.click()} className="text-[var(--color-brand-primary)] hover:opacity-80 p-1.5 sm:p-2 rounded-full transition-opacity mb-0.5" title="Attach Image">
-                                <ImageIcon size={22} className="sm:w-6 sm:h-6" />
-                                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                            </button>
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowAttachments(!showAttachments)}
+                                    className={`p-1.5 sm:p-2 rounded-full transition-colors mb-0.5 ${showAttachments ? 'bg-white/20 text-white' : 'text-[var(--color-brand-primary)] hover:opacity-80'}`}
+                                >
+                                    <Plus size={24} className={`sm:w-6 sm:h-6 transition-transform ${showAttachments ? 'rotate-45' : ''}`} />
+                                </button>
+
+                                {showAttachments && (
+                                    <div className="absolute bottom-12 left-0 bg-[#2C2C2E] border border-[#38383A] rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-1 min-w-[140px] animate-[fadeIn_0.15s_ease-out]">
+                                        <button onClick={() => { setShowAttachments(false); initCanvas(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
+                                            <div className="bg-purple-500/20 p-1.5 rounded-lg text-purple-400"><PenTool size={18} /></div> Canvas
+                                        </button>
+                                        <button onClick={() => { setShowAttachments(false); documentInputRef.current?.click(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
+                                            <div className="bg-blue-500/20 p-1.5 rounded-lg text-blue-400"><Paperclip size={18} /></div> Document
+                                            <input type="file" ref={documentInputRef} className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload} />
+                                        </button>
+                                        <button onClick={() => { setShowAttachments(false); fileInputRef.current?.click(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
+                                            <div className="bg-green-500/20 p-1.5 rounded-lg text-green-400"><ImageIcon size={18} /></div> Image
+                                            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             <form onSubmit={handleSendMessage} className="flex-1 flex ml-1">
                                 <div className="w-full bg-white/5 backdrop-blur-md rounded-3xl px-4 py-2 sm:px-5 sm:py-2.5 shadow-inner border border-white/10 flex items-center min-h-[40px] sm:min-h-[44px] transition-colors focus-within:bg-white/10 focus-within:border-white/20">
                                     <input
