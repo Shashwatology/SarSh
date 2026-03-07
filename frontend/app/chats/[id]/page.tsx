@@ -5,7 +5,7 @@ import { useAuth, api } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
 import { useCall } from '@/context/CallContext';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Image as ImageIcon, Check, CheckCheck, ChevronDown, Edit2, Trash2, X, Mic, Square, Paperclip, FileText, Palette, Users, User as UserIcon, Reply, Forward, Phone, Video } from 'lucide-react';
+import { ArrowLeft, Send, Image as ImageIcon, Check, CheckCheck, ChevronDown, Edit2, Trash2, X, Mic, Square, Paperclip, FileText, Palette, Users, User as UserIcon, Reply, Forward, Phone, Video, PenTool, Eraser } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ChatScreen() {
@@ -28,6 +28,13 @@ export default function ChatScreen() {
     const [showThemePicker, setShowThemePicker] = useState(false);
     const [showForwardModal, setShowForwardModal] = useState<any>(null); // holds message to forward
     const [allChats, setAllChats] = useState<any[]>([]);
+
+    // Canvas State
+    const [showCanvas, setShowCanvas] = useState(false);
+    const [isPainting, setIsPainting] = useState(false);
+    const [brushColor, setBrushColor] = useState('#ffffff');
+    const [brushSize, setBrushSize] = useState(3);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<BlobPart[]>([]);
     const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -130,6 +137,49 @@ export default function ChatScreen() {
             }));
         });
 
+        socket.on('start_drawing', () => {
+            setShowCanvas(true);
+            setTimeout(() => {
+                if (canvasRef.current) {
+                    canvasRef.current.width = window.innerWidth;
+                    canvasRef.current.height = window.innerHeight;
+                }
+            }, 100);
+        });
+
+        socket.on('drawing_path', (data: any) => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            ctx.lineWidth = data.size;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = data.color;
+
+            if (data.type === 'start') {
+                ctx.beginPath();
+                ctx.moveTo(data.x * canvas.width, data.y * canvas.height);
+            } else if (data.type === 'draw') {
+                ctx.lineTo(data.x * canvas.width, data.y * canvas.height);
+                ctx.stroke();
+            } else if (data.type === 'end') {
+                ctx.beginPath();
+            }
+        });
+
+        socket.on('clear_canvas', () => {
+            const canvas = canvasRef.current;
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx?.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+
+        socket.on('end_drawing', () => {
+            setShowCanvas(false);
+        });
+
         return () => {
             socket.off('receive_message');
             socket.off('typing');
@@ -139,6 +189,10 @@ export default function ChatScreen() {
             socket.off('update_message');
             socket.off('update_theme');
             socket.off('message_reaction');
+            socket.off('start_drawing');
+            socket.off('drawing_path');
+            socket.off('clear_canvas');
+            socket.off('end_drawing');
         };
     }, [socket, id, user]);
 
@@ -345,6 +399,120 @@ export default function ChatScreen() {
         } catch (err) {
             console.error(err);
         }
+    };
+
+    // --- CANVAS LOGIC ---
+    const initCanvas = () => {
+        socket?.emit('start_drawing', { chatId: String(id) });
+        setShowCanvas(true);
+        setTimeout(() => {
+            const canvas = canvasRef.current;
+            if (!canvas) return;
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }, 100);
+    };
+
+    const getCoordinates = (e: React.MouseEvent | React.TouchEvent | any) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return { x: 0, y: 0 };
+        const rect = canvas.getBoundingClientRect();
+
+        let clientX, clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
+        return {
+            x: (clientX - rect.left) / canvas.width,
+            y: (clientY - rect.top) / canvas.height
+        };
+    };
+
+    const startPosition = (e: React.MouseEvent | React.TouchEvent) => {
+        setIsPainting(true);
+        const { x, y } = getCoordinates(e);
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx && canvasRef.current) {
+            ctx.beginPath();
+            ctx.moveTo(x * canvasRef.current.width, y * canvasRef.current.height);
+            socket?.emit('drawing_path', { chatId: String(id), x, y, type: 'start', color: brushColor, size: brushSize });
+            draw(e as React.MouseEvent);
+        }
+    };
+
+    const draw = (e: React.MouseEvent | React.TouchEvent) => {
+        if (!isPainting) return;
+        const { x, y } = getCoordinates(e);
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.lineWidth = brushSize;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = brushColor;
+            ctx.lineTo(x * canvas.width, y * canvas.height);
+            ctx.stroke();
+            socket?.emit('drawing_path', { chatId: String(id), x, y, type: 'draw', color: brushColor, size: brushSize });
+        }
+    };
+
+    const endPosition = () => {
+        setIsPainting(false);
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx) ctx.beginPath();
+        socket?.emit('drawing_path', { chatId: String(id), type: 'end' });
+    };
+
+    const clearCanvas = () => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx?.clearRect(0, 0, canvas.width, canvas.height);
+            socket?.emit('clear_canvas', { chatId: String(id) });
+        }
+    };
+
+    const closeCanvas = () => {
+        setShowCanvas(false);
+        socket?.emit('end_drawing', { chatId: String(id) });
+    };
+
+    const sendCanvasImage = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tCtx = tempCanvas.getContext('2d');
+        if (tCtx) {
+            tCtx.fillStyle = '#000000';
+            tCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            tCtx.drawImage(canvas, 0, 0);
+        }
+
+        tempCanvas.toBlob(async (blob) => {
+            if (!blob) return;
+            const file = new File([blob], 'canvas_drawing.png', { type: 'image/png' });
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const uploadRes = await api.post('/upload', formData);
+                const { mediaUrl, mediaType } = uploadRes.data;
+                const res = await api.post('/messages', { chatId: id, content: '🎨 Sent a doodle', mediaUrl, mediaType });
+                setMessages((prev) => [...prev, res.data]);
+                socket?.emit('send_message', res.data);
+                closeCanvas();
+            } catch (err) {
+                console.error(err);
+            }
+        }, 'image/png');
     };
 
     return (
@@ -614,6 +782,9 @@ export default function ChatScreen() {
                         </div>
                     ) : (
                         <>
+                            <button onClick={initCanvas} className="text-[var(--color-brand-primary)] hover:opacity-80 p-2 rounded-full transition-opacity mb-0.5" title="Canvas Scratchpad">
+                                <PenTool size={24} />
+                            </button>
                             <button onClick={() => documentInputRef.current?.click()} className="text-[var(--color-brand-primary)] hover:opacity-80 p-2 rounded-full transition-opacity mb-0.5">
                                 <Paperclip size={24} />
                                 <input type="file" ref={documentInputRef} className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload} />
@@ -662,6 +833,67 @@ export default function ChatScreen() {
                     )}
                 </div>
             </div>
+
+            {/* Canvas Overlay Component */}
+            {showCanvas && (
+                <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center animate-[fadeIn_0.2s_ease-out]">
+                    <canvas
+                        ref={canvasRef}
+                        onMouseDown={startPosition}
+                        onMouseMove={draw}
+                        onMouseUp={endPosition}
+                        onMouseOut={endPosition}
+                        onTouchStart={startPosition}
+                        onTouchMove={draw}
+                        onTouchEnd={endPosition}
+                        className="absolute inset-0 w-full h-full bg-black cursor-crosshair touch-none"
+                    />
+
+                    {/* Top Bar */}
+                    <div className="pointer-events-none absolute top-0 w-full p-4 flex justify-between items-center z-10 bg-gradient-to-b from-black/80 to-transparent">
+                        <button onClick={closeCanvas} className="pointer-events-auto p-2 bg-white/10 rounded-full text-white backdrop-blur-md hover:bg-white/20 transition-colors">
+                            <X size={24} />
+                        </button>
+                        <div className="text-white/80 font-semibold tracking-wide flex items-center gap-2 bg-black/50 px-4 py-1.5 rounded-full backdrop-blur-sm border border-white/10">
+                            <PenTool size={16} /> Shared Canvas
+                        </div>
+                        <button onClick={sendCanvasImage} className="pointer-events-auto px-4 py-2 bg-[var(--color-brand-primary)] rounded-full text-white font-semibold flex items-center gap-2 shadow-lg hover:shadow-[var(--color-brand-primary)]/30 transition-all">
+                            Send <Send size={16} />
+                        </button>
+                    </div>
+
+                    {/* Bottom Toolbar */}
+                    <div className="pointer-events-none absolute bottom-8 w-full flex justify-center z-10">
+                        <div className="pointer-events-auto bg-[#2C2C2E] border border-[#38383A] rounded-full px-5 py-3 flex items-center gap-4 shadow-2xl backdrop-blur-xl">
+                            <div className="flex gap-2">
+                                {['#ffffff', '#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#007aff', '#AF52DE'].map(color => (
+                                    <button
+                                        key={color}
+                                        onClick={() => setBrushColor(color)}
+                                        className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 transition-transform ${brushColor === color ? 'scale-110 border-white shadow-lg' : 'border-transparent scale-90 opacity-80 hover:opacity-100'}`}
+                                        style={{ backgroundColor: color }}
+                                    />
+                                ))}
+                            </div>
+                            <div className="w-[1px] h-8 bg-white/10"></div>
+                            <button onClick={() => setBrushColor('#000000')} className={`p-2 rounded-full transition-colors ${brushColor === '#000000' ? 'bg-white/20' : 'hover:bg-white/10 opacity-70 hover:opacity-100'}`} title="Eraser">
+                                <Eraser size={22} className="text-white" />
+                            </button>
+                            <button onClick={clearCanvas} className="p-2 rounded-full hover:bg-red-500/20 text-red-400 transition-colors opacity-80 hover:opacity-100" title="Clear Canvas">
+                                <Trash2 size={22} />
+                            </button>
+                            <div className="w-[1px] h-8 bg-white/10 hidden sm:block"></div>
+                            <input
+                                type="range"
+                                min="1" max="25"
+                                value={brushSize}
+                                onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                                className="w-20 sm:w-24 accent-[var(--color-brand-primary)] hidden sm:block"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

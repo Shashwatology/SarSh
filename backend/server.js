@@ -149,6 +149,23 @@ io.on('connection', (socket) => {
         io.to(`user_${data.to}`).emit('ice_candidate', data);
     });
 
+    // Collaborative Canvas Events
+    socket.on('start_drawing', (data) => {
+        io.to(String(data.chatId)).emit('start_drawing', data);
+    });
+
+    socket.on('drawing_path', (data) => {
+        socket.to(String(data.chatId)).emit('drawing_path', data);
+    });
+
+    socket.on('clear_canvas', (data) => {
+        io.to(String(data.chatId)).emit('clear_canvas', data);
+    });
+
+    socket.on('end_drawing', (data) => {
+        io.to(String(data.chatId)).emit('end_drawing', data);
+    });
+
     // Handle message delivery ACK
     socket.on('message_delivered', async (data) => {
         try {
