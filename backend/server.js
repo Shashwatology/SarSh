@@ -9,17 +9,23 @@ dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
+const allowedOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',')
+    : ['https://sarsh.vercel.app', 'http://localhost:3000'];
+
 const io = new Server(server, {
     cors: {
-        origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : '*',
-        methods: ['GET', 'POST']
+        origin: allowedOrigins,
+        methods: ['GET', 'POST'],
+        credentials: true
     }
 });
 
 app.use(cors({
-    origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',') : '*',
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
 
