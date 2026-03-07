@@ -116,7 +116,7 @@ export default function ChatScreen() {
 
         socket.on('message_reaction', (data: any) => {
             setMessages((prev) => prev.map(m => {
-                if (m.id === data.messageId) {
+                if (m.id === Number(data.messageId)) {
                     let reactions = m.reactions || [];
                     if (data.action === 'added') {
                         reactions = reactions.filter((r: any) => r.user_id !== data.userId);
@@ -148,8 +148,11 @@ export default function ChatScreen() {
 
     const handleReaction = async (messageId: number, reaction: string) => {
         try {
-            await api.post(`/messages/${messageId}/react`, { reaction });
+            const res = await api.post(`/messages/${messageId}/react`, { reaction });
             setActiveMenuId(null);
+            if (socket) {
+                socket.emit('message_reaction', { ...res.data, chatId: id });
+            }
         } catch (err) {
             console.error('Error reacting', err);
         }
