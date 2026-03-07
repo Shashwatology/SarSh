@@ -118,9 +118,6 @@ router.post('/', auth, async (req, res) => {
     await pool.query(`INSERT INTO ChatParticipants (chat_id, user_id) VALUES ($1, $2)`, [chatId, userId]);
     await pool.query(`INSERT INTO ChatParticipants (chat_id, user_id) VALUES ($1, $2)`, [chatId, recipientId]);
 
-    // Update Chats row manually for backwards compatibility if the frontend still relies on it temporarily
-    await pool.query(`UPDATE Chats SET user1_id = $1, user2_id = $2 WHERE id = $3`, [userId, recipientId, chatId]);
-
     res.json(newChat.rows[0]);
   } catch (err) {
     console.error(err.message);
