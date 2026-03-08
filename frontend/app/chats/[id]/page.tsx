@@ -48,9 +48,6 @@ export default function ChatScreen() {
     const [swipeDistanceX, setSwipeDistanceX] = useState<number>(0);
     const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Chat Header Options
-    const [showChatOptions, setShowChatOptions] = useState(false);
-
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const documentInputRef = useRef<HTMLInputElement>(null);
@@ -514,26 +511,6 @@ export default function ChatScreen() {
         }
     };
 
-    const handleClearChat = async () => {
-        if (window.confirm("Are you sure you want to clear this entire chat for everyone? This cannot be undone.")) {
-            try {
-                await api.delete(`/messages/chat/${id}`);
-                setMessages([]);
-                // Assuming setShowChatOptions is a state setter, it needs to be declared.
-                // For now, I'll just call it, assuming it will be added.
-                // If this is a standalone snippet, you might need to add:
-                // const [showChatOptions, setShowChatOptions] = useState(false);
-                // at the top of your component.
-                setShowChatOptions(false);
-            } catch (error) {
-                console.error("Failed to clear chat", error);
-                alert("Failed to clear chat. Please try again.");
-            }
-        } else {
-            setShowChatOptions(false);
-        }
-    };
-
     const closeCanvas = () => {
         setShowCanvas(false);
         socket?.emit('end_drawing', { chatId: String(id) });
@@ -749,24 +726,6 @@ export default function ChatScreen() {
                                         {currentChat?.theme === theme && <Check size={16} className="text-[var(--color-brand-primary)]" />}
                                     </button>
                                 ))}
-                            </div>
-                        </div>
-                    )}
-                    <button
-                        onClick={() => setShowChatOptions(!showChatOptions)}
-                        className="p-1 sm:p-2 rounded-full hover:bg-white/10 text-[var(--color-brand-primary)] transition-colors ml-0.5"
-                    >
-                        <MoreVertical size={22} className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </button>
-                    {showChatOptions && (
-                        <div className="absolute right-0 top-12 mt-2 w-48 bg-[#2C2C2E] border border-[#38383A] rounded-2xl shadow-2xl p-2 z-50">
-                            <div className="space-y-1">
-                                <button
-                                    onClick={handleClearChat}
-                                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm flex items-center text-red-500 hover:bg-[#38383A] transition-colors"
-                                >
-                                    <Trash2 size={16} className="mr-3 opacity-80" /> Clear Chat
-                                </button>
                             </div>
                         </div>
                     )}
