@@ -48,9 +48,14 @@ export default function ChatScreen() {
     const [swipeDistanceX, setSwipeDistanceX] = useState<number>(0);
     const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+    const chatInfoRef = useRef<any>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const documentInputRef = useRef<HTMLInputElement>(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
 
     useEffect(() => {
         if (!id || !user) return;
@@ -230,10 +235,6 @@ export default function ChatScreen() {
         };
     }, [socket, id, user]);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, otherUserTyping]);
@@ -251,7 +252,7 @@ export default function ChatScreen() {
     };
 
     let typingTimeout: NodeJS.Timeout;
-    const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
         setNewMessage(e.target.value);
 
         if (!isTyping) {
