@@ -207,10 +207,34 @@ router.delete('/:id', auth, async (req, res) => {
             return res.status(404).json({ msg: 'Message not found or unauthorized' });
         }
 
-        res.json(deleted.rows[0]);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error deleting message');
+    }
+});
+
+// Clear all messages in a chat
+router.delete('/chat/:chatId', auth, async (req, res) => {
+    try {
+        const chatId = req.params.chatId;
+        const userId = req.user.id;
+
+        // Ensure the user is part of the chat before allowing deletion
+        const isParticipant = await pool.query(
+            'SELECT * FROM ChatParticipants WHERE chat_id = $1 AND user_id = $2',
+            [chatId, userId]
+        );
+
+        if (isParticipant.rows.length === 0) {
+            return res.status(403).json({ msg: 'Unauthorized to clear this chat' });
+        }
+
+        await pool.query('DELETE FROM Messages WHERE chat_id = $1', [chatId]);
+
+        res.json({ msg: 'Chat cleared successfully' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error clearing chat');
     }
 });
 
