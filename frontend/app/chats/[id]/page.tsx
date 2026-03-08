@@ -41,6 +41,11 @@ export default function ChatScreen() {
     const audioChunksRef = useRef<BlobPart[]>([]);
     const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+    // Swipe-to-reply State
+    const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
+    const [swipeDistanceX, setSwipeDistanceX] = useState<number>(0);
+    const [swipingMessageId, setSwipingMessageId] = useState<number | null>(null);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const documentInputRef = useRef<HTMLInputElement>(null);
@@ -572,6 +577,44 @@ export default function ChatScreen() {
         socket?.emit('draw_grid', { chatId: String(id) });
     };
 
+    // --- SWIPE TO REPLY LOGIC ---
+    const SWIPE_THRESHOLD = 50; // pixels to trigger reply
+    const MAX_SWIPE = 80;
+
+    const handleTouchStart = (e: React.TouchEvent, msgId: number) => {
+        setSwipeStartX(e.touches[0].clientX);
+        setSwipingMessageId(msgId);
+        setSwipeDistanceX(0);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (swipeStartX === null || swipingMessageId === null) return;
+        const currentX = e.touches[0].clientX;
+        const diff = currentX - swipeStartX;
+
+        // Only allow swiping right
+        if (diff > 0 && diff < MAX_SWIPE) {
+            setSwipeDistanceX(diff);
+        } else if (diff >= MAX_SWIPE) {
+            setSwipeDistanceX(MAX_SWIPE);
+        } else {
+            setSwipeDistanceX(0);
+        }
+    };
+
+    const handleTouchEnd = (msg: any) => {
+        if (swipeDistanceX >= SWIPE_THRESHOLD) {
+            setReplyingTo(msg);
+            // Optionally trigger a light haptic feedback if supported check
+            if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(50);
+            }
+        }
+        setSwipeStartX(null);
+        setSwipingMessageId(null);
+        setSwipeDistanceX(0);
+    };
+
     return (
         <div className={`flex flex-col h-[100dvh] w-full bg-black relative md:rounded-l-sm shadow-inner overflow-hidden theme-${currentChat?.theme || 'default'}`}>
             {/* Header */}
@@ -610,13 +653,13 @@ export default function ChatScreen() {
                     {!currentChat?.is_group && (
                         <>
                             <button
-                                onClick={() => callUser(currentChat?.other_user_id || Number(id), false, currentChat?.username)}
+                                onClick={() => callUser(currentChat?.other_user_id || Number(id), false, currentChat?.username, id as string)}
                                 className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 text-[var(--color-brand-primary)] transition-colors"
                             >
                                 <Phone size={20} className="w-5 h-5 sm:w-5 sm:h-5" />
                             </button>
                             <button
-                                onClick={() => callUser(currentChat?.other_user_id || Number(id), true, currentChat?.username)}
+                                onClick={() => callUser(currentChat?.other_user_id || Number(id), true, currentChat?.username, id as string)}
                                 className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 text-[var(--color-brand-primary)] transition-colors mr-0.5"
                             >
                                 <Video size={22} className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -650,19 +693,47 @@ export default function ChatScreen() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 z-10 flex flex-col gap-3">
+            <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 z-10 flex flex-col gap-3 overflow-x-hidden">
                 {messages.map((msg, index) => {
                     const isMine = msg.sender_id === user?.id;
                     const isConsecutive = index > 0 && messages[index - 1].sender_id === msg.sender_id;
+                    const isSwiping = swipingMessageId === msg.id;
 
                     return (
-                        <div key={msg.id || index} className={`flex ${isMine ? 'justify-end' : 'justify-start'} ${isConsecutive ? '-mt-1' : ''}`}>
+                        <div
+                            key={msg.id || index}
+                            className={`flex relative ${isMine ? 'justify-end' : 'justify-start'} ${isConsecutive ? '-mt-1' : ''}`}
+                            onTouchStart={(e) => handleTouchStart(e, msg.id)}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={() => handleTouchEnd(msg)}
+                        >
+                            {/* Reply Icon Indicator (revealed on swipe) */}
+                            {!isMine && (
+                                <div
+                                    className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center justify-center transition-opacity"
+                                    style={{
+                                        opacity: isSwiping ? Math.min(swipeDistanceX / SWIPE_THRESHOLD, 1) : 0,
+                                        width: '40px',
+                                        zIndex: 0
+                                    }}
+                                >
+                                    <div className="bg-white/10 p-2 rounded-full">
+                                        <Reply size={16} className="text-white" />
+                                    </div>
+                                </div>
+                            )}
+
                             <div
                                 className={`max-w-[85%] md:max-w-[70%] px-4 py-2.5 relative text-[15px] leading-relaxed shadow-md group border border-white/5 transition-all
                                     ${isMine
                                         ? 'bg-[var(--color-brand-bubble-me)] text-white rounded-[20px] rounded-br-[4px]'
                                         : 'bg-[var(--color-brand-bubble-other)] text-white rounded-[20px] rounded-bl-[4px]'
                                     } ${msg.is_deleted ? 'opacity-70 italic' : ''}`}
+                                style={{
+                                    transform: isSwiping && !isMine ? `translateX(${swipeDistanceX}px)` : 'translateX(0)',
+                                    transition: isSwiping ? 'none' : 'transform 0.2s ease-out',
+                                    zIndex: 1
+                                }}
                             >
                                 {!isMine && currentChat?.is_group && !isConsecutive && (
                                     <div className="text-[12px] font-semibold text-[var(--color-brand-primary)] mb-0.5 opacity-90">

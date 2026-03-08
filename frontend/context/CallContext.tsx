@@ -5,7 +5,7 @@ import { useSocket } from './SocketContext';
 import { useAuth } from './AuthContext';
 
 interface CallContextType {
-    callUser: (userId: number, isVideoCall: boolean, name: string) => void;
+    callUser: (userId: number, isVideoCall: boolean, name: string, chatId?: string | number) => void;
     answerCall: () => void;
     rejectCall: () => void;
     endCall: () => void;
@@ -80,6 +80,11 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         if (!socket || !user) return;
 
         socket.on('incoming_call', (data: any) => {
+            if (isReceivingCall || callAccepted || (isCaller && !callEnded)) {
+                // Automatically reject if already busy
+                socket.emit('reject_call', { to: data.from, reason: 'busy' });
+                return;
+            }
             setIsReceivingCall(true);
             setCallData(data);
             setIsCaller(false);
@@ -105,9 +110,13 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             }
         });
 
-        socket.on('call_rejected', () => {
+        socket.on('call_rejected', (data) => {
             cleanupCall();
-            alert('Call was rejected or user is busy.');
+            if (data?.reason === 'busy') {
+                alert('User is currently busy on another call.');
+            } else {
+                alert('Call was rejected.');
+            }
         });
 
         socket.on('call_ended', () => {
@@ -148,11 +157,11 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         }
     };
 
-    const callUser = async (userToCall: number, isVideoCall: boolean, name: string) => {
+    const callUser = async (userToCall: number, isVideoCall: boolean, name: string, chatId?: string | number) => {
         const stream = await getMedia(isVideoCall);
         if (!stream) return;
 
-        setCallData({ userToCall, isVideoCall, name });
+        setCallData({ userToCall, isVideoCall, name, chatId });
         setIsCaller(true);
         setCallEnded(false);
 
@@ -167,7 +176,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             signalData: offer,
             from: user?.id,
             name: user?.username,
-            isVideoCall
+            isVideoCall,
+            chatId
         });
     };
 
@@ -202,13 +212,13 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     const rejectCall = () => {
-        socket?.emit('reject_call', { to: callData.from });
+        socket?.emit('reject_call', { to: callData.from, chatId: callData.chatId, isVideoCall: callData.isVideoCall });
         cleanupCall();
     };
 
     const endCall = () => {
         const toId = isCaller ? callData.userToCall : callData.from;
-        socket?.emit('end_call', { to: toId });
+        socket?.emit('end_call', { to: toId, chatId: callData.chatId, isVideoCall: callData.isVideoCall });
         cleanupCall();
     };
 

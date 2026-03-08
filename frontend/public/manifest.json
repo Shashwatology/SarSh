@@ -1,6 +1,7 @@
 {
-  "name": "ChatApp",
-  "short_name": "ChatApp",
+  "name": "Sampark",
+  "short_name": "Sampark",
+  "description": "Stay connected with real-time audio, video, and text messaging.",
   "theme_color": "#128C7E",
   "background_color": "#ffffff",
   "display": "standalone",
@@ -9,14 +10,16 @@
   "start_url": "/",
   "icons": [
     {
-      "src": "/icons/icon-192x192.png",
+      "src": "/sampark-logo.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512x512.png",
+      "src": "/sampark-logo.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

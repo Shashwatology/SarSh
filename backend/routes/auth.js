@@ -77,4 +77,18 @@ router.get('/me', auth, async (req, res) => {
     }
 });
 
+router.put('/profile', auth, async (req, res) => {
+    const { username, status } = req.body;
+    try {
+        const result = await pool.query(
+            'UPDATE Users SET username = COALESCE($1, username), status = COALESCE($2, status) WHERE id = $3 RETURNING id, username, phone, email, profile_picture, status',
+            [username, status, req.user.id]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;

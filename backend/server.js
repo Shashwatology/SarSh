@@ -120,13 +120,14 @@ io.on('connection', (socket) => {
 
     // WebRTC Signaling Events
     socket.on('call_user', (data) => {
-        // data: { userToCall: socket_id or room_id, signalData: offer, from: senderId, name: senderName, isVideoCall: boolean }
+        // data: { userToCall: socket_id or room_id, signalData: offer, from: senderId, name: senderName, isVideoCall: boolean, chatId: string|number }
         // We broadcast to the specific user's personal room
         io.to(`user_${data.userToCall}`).emit('incoming_call', {
             signal: data.signalData,
             from: data.from,
             name: data.name,
-            isVideoCall: data.isVideoCall
+            isVideoCall: data.isVideoCall,
+            chatId: data.chatId
         });
     });
 
@@ -135,14 +136,45 @@ io.on('connection', (socket) => {
         io.to(`user_${data.to}`).emit('call_accepted', data.signal);
     });
 
-    socket.on('reject_call', (data) => {
-        // data: { to: caller_user_id }
-        io.to(`user_${data.to}`).emit('call_rejected');
+    socket.on('reject_call', async (data) => {
+        // data: { to: caller_user_id, reason?: 'busy', chatId: ..., isVideoCall: ... }
+        io.to(`user_${data.to}`).emit('call_rejected', data);
+
+        if (data.chatId && data.to) {
+            try {
+                const msg = data.reason === 'busy' ? (data.isVideoCall ? '📞 User busy (Video)' : '📞 User busy (Audio)') : (data.isVideoCall ? '📞 Missed Video Call' : '📞 Missed Audio Call');
+                const res = await db.query(
+                    `INSERT INTO Messages (chat_id, sender_id, content) VALUES ($1, $2, $3) RETURNING *`,
+                    [data.chatId, data.to, msg]
+                );
+                io.to(String(data.chatId)).emit('receive_message', res.rows[0]);
+            } catch (e) {
+                console.error('Failed to log rejected call', e);
+            }
+        }
     });
 
-    socket.on('end_call', (data) => {
-        // data: { to: other_user_id }
+    socket.on('end_call', async (data) => {
+        // data: { to: other_user_id, chatId: ..., isVideoCall: ... }
         io.to(`user_${data.to}`).emit('call_ended');
+
+        if (data.chatId) {
+            try {
+                // Find sender_id from the socket if we want the current user, or just hardcode the participant
+                // Since data.to is the OTHER user, the sender of this message should conceptually be the one who ended the call
+                const userId = onlineUsers.get(socket.id);
+                if (userId) {
+                    const msg = data.isVideoCall ? '📞 Video Call Ended' : '📞 Audio Call Ended';
+                    const res = await db.query(
+                        `INSERT INTO Messages (chat_id, sender_id, content) VALUES ($1, $2, $3) RETURNING *`,
+                        [data.chatId, userId, msg]
+                    );
+                    io.to(String(data.chatId)).emit('receive_message', res.rows[0]);
+                }
+            } catch (e) {
+                console.error('Failed to log ended call', e);
+            }
+        }
     });
 
     socket.on('ice_candidate', (data) => {

@@ -38,10 +38,10 @@ export default function Register() {
             <div className="max-w-md w-full bg-[#1C1C1E] border border-[#38383A] rounded-3xl shadow-2xl overflow-hidden mt-8 mb-8">
                 <div className="p-8 text-center pb-6">
                     <div className="w-16 h-16 relative bg-white rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-[var(--color-brand-primary)]/10 border border-white/5 overflow-hidden">
-                        <Image src="/sarsh-logo.png" alt="Sarsh" fill className="object-cover scale-[0.8]" />
+                        <Image src="/sampark-logo.png" alt="Sampark" fill className="object-cover scale-[0.8]" />
                     </div>
-                    <h2 className="text-3xl font-bold text-white mb-2 tracking-tight">Create Account</h2>
-                    <p className="text-[var(--color-text-secondary)]">Join Sarsh today</p>
+                    <h1 className="text-3xl font-extrabold text-white tracking-tight mb-2">Join Sampark</h1>
+                    <p className="text-[var(--color-text-secondary)] text-sm">Create an account to start chatting instantly.</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-4">

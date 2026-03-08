@@ -14,6 +14,69 @@ export default function CallComponent() {
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
+    // Audio context for ringing sound
+    const audioCtxRef = useRef<AudioContext | null>(null);
+    const oscillatorRef = useRef<OscillatorNode | null>(null);
+    const gainNodeRef = useRef<GainNode | null>(null);
+    const ringIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    const playRingtone = () => {
+        if (!audioCtxRef.current) {
+            audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+
+        const playBeep = () => {
+            if (!audioCtxRef.current) return;
+            const osc = audioCtxRef.current.createOscillator();
+            const gainNode = audioCtxRef.current.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, audioCtxRef.current.currentTime); // A4 note
+            osc.frequency.setValueAtTime(480, audioCtxRef.current.currentTime + 0.1); // slight warble
+
+            gainNode.gain.setValueAtTime(0, audioCtxRef.current.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.5, audioCtxRef.current.currentTime + 0.1);
+            gainNode.gain.setValueAtTime(0.5, audioCtxRef.current.currentTime + 1.2);
+            gainNode.gain.linearRampToValueAtTime(0, audioCtxRef.current.currentTime + 1.5);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtxRef.current.destination);
+
+            osc.start(audioCtxRef.current.currentTime);
+            osc.stop(audioCtxRef.current.currentTime + 1.5);
+
+            oscillatorRef.current = osc;
+            gainNodeRef.current = gainNode;
+        };
+
+        playBeep();
+        ringIntervalRef.current = setInterval(playBeep, 2500); // Repeat every 2.5 seconds
+    };
+
+    const stopRingtone = () => {
+        if (ringIntervalRef.current) {
+            clearInterval(ringIntervalRef.current);
+            ringIntervalRef.current = null;
+        }
+        if (oscillatorRef.current) {
+            try { oscillatorRef.current.stop(); } catch (e) { }
+            oscillatorRef.current = null;
+        }
+    };
+
+    // Manage Ringtone lifecycle
+    useEffect(() => {
+        if (isReceivingCall && !callAccepted) {
+            playRingtone();
+        } else {
+            stopRingtone();
+        }
+
+        return () => {
+            stopRingtone();
+        };
+    }, [isReceivingCall, callAccepted]);
+
     // Auto-play streams when they are set
     useEffect(() => {
         if (localVideoRef.current && localStream) {

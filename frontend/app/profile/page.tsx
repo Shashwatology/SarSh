@@ -1,16 +1,50 @@
 "use client";
 
 import { useAuth, api } from '@/context/AuthContext';
-import { LogOut, ArrowLeft, Camera, Edit2, Loader2 } from 'lucide-react';
+import { LogOut, ArrowLeft, Camera, Edit2, Loader2, Check, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function ProfilePage() {
     const { user, logout, checkAuth } = useAuth();
     const router = useRouter();
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [isEditingAbout, setIsEditingAbout] = useState(false);
+    const [editName, setEditName] = useState('');
+    const [editAbout, setEditAbout] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (user) {
+            setEditName(user.username || '');
+            setEditAbout(user.status || 'Hey there! I am using Sarsh.');
+        }
+    }, [user]);
+
+    const handleProfileUpdate = async () => {
+        if (!editName.trim()) return alert('Name cannot be empty.');
+
+        setIsSaving(true);
+        try {
+            const res = await api.put('/auth/profile', { username: editName, status: editAbout });
+            if (res.data) {
+                const updatedUser = { ...user, ...res.data };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                await checkAuth();
+                setIsEditingName(false);
+                setIsEditingAbout(false);
+            }
+        } catch (err: any) {
+            console.error('Failed to update profile', err);
+            alert('Failed to update profile.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     if (!user) return null;
 
@@ -97,25 +131,71 @@ export default function ProfilePage() {
                         <div className="bg-[#1C1C1E] md:bg-black/20 rounded-2xl overflow-hidden border border-[#38383A] shadow-sm">
 
                             {/* Name Edit */}
-                            <div className="px-4 py-3.5 flex justify-between items-center border-b border-[#38383A] group">
-                                <div>
+                            <div className="px-4 py-3.5 flex justify-between items-center border-b border-[#38383A] group min-h-[72px]">
+                                <div className="flex-1 mr-4">
                                     <p className="text-[12px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold mb-1">Display Name</p>
-                                    <div className="text-white text-[16px] font-medium">{user.username}</div>
+                                    {isEditingName ? (
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            value={editName}
+                                            onChange={(e) => setEditName(e.target.value)}
+                                            className="w-full bg-transparent text-white text-[16px] font-medium outline-none border-b border-[var(--color-brand-primary)] pb-1"
+                                            placeholder="Your display name"
+                                            maxLength={25}
+                                        />
+                                    ) : (
+                                        <div className="text-white text-[16px] font-medium">{user.username}</div>
+                                    )}
                                 </div>
-                                <div className="w-10 h-10 rounded-full flex items-center justify-center group-hover:bg-[#2C2C2E] transition-colors cursor-pointer">
-                                    <Edit2 size={18} className="text-[var(--color-text-secondary)] group-hover:text-white transition-colors" />
-                                </div>
+                                {isEditingName ? (
+                                    <div className="flex gap-2 shrink-0">
+                                        <div onClick={() => { setIsEditingName(false); setEditName(user.username); }} className="w-8 h-8 rounded-full flex items-center justify-center bg-[#2C2C2E] cursor-pointer text-[#8E8E93] hover:text-white transition-colors">
+                                            <X size={16} />
+                                        </div>
+                                        <div onClick={handleProfileUpdate} className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--color-brand-primary)] cursor-pointer text-white hover:opacity-80 transition-opacity">
+                                            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div onClick={() => setIsEditingName(true)} className="w-10 h-10 rounded-full flex items-center justify-center group-hover:bg-[#2C2C2E] transition-colors cursor-pointer shrink-0">
+                                        <Edit2 size={18} className="text-[var(--color-text-secondary)] group-hover:text-white transition-colors" />
+                                    </div>
+                                )}
                             </div>
 
                             {/* About/Status Edit */}
-                            <div className="px-4 py-3.5 flex justify-between items-center group">
-                                <div className="pr-4">
+                            <div className="px-4 py-3.5 flex justify-between items-center group min-h-[72px]">
+                                <div className="flex-1 mr-4">
                                     <p className="text-[12px] text-[var(--color-text-secondary)] uppercase tracking-wider font-semibold mb-1">About</p>
-                                    <div className="text-white text-[16px] leading-snug">{user.status || 'Hey there! I am using Sarsh.'}</div>
+                                    {isEditingAbout ? (
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            value={editAbout}
+                                            onChange={(e) => setEditAbout(e.target.value)}
+                                            className="w-full bg-transparent text-white text-[16px] leading-snug outline-none border-b border-[var(--color-brand-primary)] pb-1"
+                                            placeholder="Hey there! I am using Sarsh."
+                                            maxLength={100}
+                                        />
+                                    ) : (
+                                        <div className="text-white text-[16px] leading-snug">{user.status || 'Hey there! I am using Sarsh.'}</div>
+                                    )}
                                 </div>
-                                <div className="w-10 h-10 rounded-full flex items-center justify-center group-hover:bg-[#2C2C2E] transition-colors cursor-pointer shrink-0">
-                                    <Edit2 size={18} className="text-[var(--color-text-secondary)] group-hover:text-white transition-colors" />
-                                </div>
+                                {isEditingAbout ? (
+                                    <div className="flex gap-2 shrink-0">
+                                        <div onClick={() => { setIsEditingAbout(false); setEditAbout(user.status || 'Hey there! I am using Sarsh.'); }} className="w-8 h-8 rounded-full flex items-center justify-center bg-[#2C2C2E] cursor-pointer text-[#8E8E93] hover:text-white transition-colors">
+                                            <X size={16} />
+                                        </div>
+                                        <div onClick={handleProfileUpdate} className="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--color-brand-primary)] cursor-pointer text-white hover:opacity-80 transition-opacity">
+                                            {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div onClick={() => setIsEditingAbout(true)} className="w-10 h-10 rounded-full flex items-center justify-center group-hover:bg-[#2C2C2E] transition-colors cursor-pointer shrink-0">
+                                        <Edit2 size={18} className="text-[var(--color-text-secondary)] group-hover:text-white transition-colors" />
+                                    </div>
+                                )}
                             </div>
                         </div>
 

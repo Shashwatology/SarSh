@@ -6,13 +6,17 @@ import ClientProviders from './ClientProviders';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Sarsh | Private Conversations',
-  description: 'Instant, secure messaging using only your username.',
+  title: "Sampark",
+  description: "Connect with the world instantly.",
+  icons: {
+    icon: '/sampark-logo.png',
+    apple: '/sampark-logo.png',
+  },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Sarsh',
+    title: 'Sampark',
   },
 };
 

@@ -33,7 +33,7 @@ export default function LandingPage() {
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center z-[100] transition-opacity duration-1000 ease-in-out">
         <div className="relative animate-pulse flex flex-col items-center">
           <div className="w-32 h-32 relative mb-6">
-            <Image src="/sarsh-logo.png" alt="Sarsh Logo" fill className="object-cover" priority />
+            <Image src="/sampark-logo.png" alt="Sampark Logo" fill className="object-cover" priority />
           </div>
           <div className="h-1 w-48 bg-white/10 rounded-full overflow-hidden">
             <div className="h-full bg-orange-500 rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '50%' }}></div>
@@ -50,9 +50,9 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 h-[72px] flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => window.scrollTo(0, 0)}>
             <div className="w-10 h-10 relative bg-white rounded-xl shadow-sm overflow-hidden flex items-center justify-center">
-              <Image src="/sarsh-logo.png" alt="Sarsh" fill className="object-cover scale-[0.8]" />
+              <Image src="/sampark-logo.png" alt="Sampark" fill className="object-cover scale-[0.8]" />
             </div>
-            <span className="font-bold text-2xl tracking-tighter text-white">Sarsh</span>
+            <span className="font-bold text-2xl tracking-tighter text-white">Sampark</span>
           </div>
           <div className="flex items-center gap-6">
             <a href="#features" className="text-sm font-medium text-gray-400 hover:text-white transition-colors hidden md:block">Features</a>
@@ -91,7 +91,7 @@ export default function LandingPage() {
         </h1>
 
         <p className="text-xl md:text-2xl text-gray-400 max-w-3xl mb-12 leading-relaxed tracking-tight font-light">
-          Sarsh is an Indian messaging platform built for privacy and speed. Connect instantly using just a username—no phone numbers required.
+          Sampark is an Indian messaging platform built for privacy and speed. Connect instantly using just a username—no phone numbers required.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center gap-5">
@@ -182,7 +182,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-20">
             <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-6 text-white">The Future is Minimal.</h2>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto">Sarsh removes the noise so you can focus on the message. Built for speed, security, and simplicity.</p>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">Sampark removes the noise so you can focus on the message. Built for speed, security, and simplicity.</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -222,7 +222,7 @@ export default function LandingPage() {
               Your conversations, secured end-to-end.
             </h2>
             <p className="text-gray-400 text-lg leading-relaxed">
-              Privacy isn't just a feature on Sarsh, it's the foundation. Our architecture ensures that your personal information, voice notes, and images are protected from edge to cloud. Feel safe communicating with colleagues, friends, and family.
+              Privacy isn't just a feature on Sampark, it's the foundation. Our architecture ensures that your personal information, voice notes, and images are protected from edge to cloud. Feel safe communicating with colleagues, friends, and family.
             </p>
             <ul className="space-y-4">
               {['JWT Authentication', 'Media Encryption', 'No tracking pixels', 'Independently Auditable'].map((item, i) => (
@@ -248,7 +248,7 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="py-32 relative text-center px-6">
         <div className="max-w-3xl mx-auto space-y-8">
-          <h2 className="text-5xl font-bold tracking-tight text-white">Ready to join Sarsh?</h2>
+          <h2 className="text-5xl font-bold tracking-tight text-white">Ready to join Sampark?</h2>
           <p className="text-xl text-gray-400">Claim your username today before someone else does.</p>
           <button
             onClick={handleCTA}
@@ -264,9 +264,9 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 relative bg-white rounded-lg flex items-center justify-center cursor-pointer">
-              <Image src="/sarsh-logo.png" alt="Sarsh" fill className="object-cover scale-[0.7]" />
+              <Image src="/sampark-logo.png" alt="Sampark" fill className="object-cover scale-[0.7]" />
             </div>
-            <span className="font-bold text-xl text-white">Sarsh</span>
+            <span className="font-bold text-xl text-white">Sampark</span>
             <a href="https://github.com/shashwatology/SarSh" target="_blank" rel="noreferrer" className="text-gray-400 hover:text-white transition-colors hidden sm:block">
               <Github size={22} />
             </a>
