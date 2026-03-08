@@ -733,11 +733,21 @@ export default function ChatScreen() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 z-10 flex flex-col gap-3 overflow-x-hidden chat-bg-pattern bg-[var(--color-brand-bg)] transition-colors duration-300">
+            <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 z-10 flex flex-col gap-3 overflow-x-hidden chat-bg-pattern bg-[var(--color-brand-bg)] transition-colors duration-300 relative">
+
+                {/* Blur Overlay when a message menu is open */}
+                {activeMenuId && (
+                    <div
+                        className="fixed inset-0 bg-black/60 backdrop-blur-[4px] z-[40] transition-all duration-200"
+                        onClick={() => setActiveMenuId(null)}
+                    />
+                )}
+
                 {messages.map((msg, index) => {
                     const isMine = msg.sender_id === user?.id;
                     const isConsecutive = index > 0 && messages[index - 1].sender_id === msg.sender_id;
                     const isSwiping = swipingMessageId === msg.id;
+                    const isActiveMenu = activeMenuId === msg.id;
 
                     return (
                         <div
@@ -764,15 +774,15 @@ export default function ChatScreen() {
                             )}
 
                             <div
-                                className={`max-w-[85%] md:max-w-[70%] px-4 py-2.5 relative text-[15px] leading-relaxed shadow-md group border border-white/5 transition-all
+                                className={`max-w-[85%] md:max-w-[70%] px-4 py-2.5 relative text-[15px] leading-relaxed group border border-white/5 transition-all duration-200
                                     ${isMine
                                         ? 'bg-[var(--color-brand-bubble-me)] text-white rounded-[20px] rounded-br-[4px]'
                                         : 'bg-[var(--color-brand-bubble-other)] text-white rounded-[20px] rounded-bl-[4px]'
-                                    } ${msg.is_deleted ? 'opacity-70 italic' : ''}`}
+                                    } ${msg.is_deleted ? 'opacity-70 italic' : ''} 
+                                      ${isActiveMenu ? 'scale-[1.02] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[50] ring-1 ring-white/10' : 'shadow-md z-[1]'}`}
                                 style={{
-                                    transform: isSwiping && !isMine ? `translateX(${swipeDistanceX}px)` : 'translateX(0)',
-                                    transition: isSwiping ? 'none' : 'transform 0.2s ease-out',
-                                    zIndex: 1
+                                    transform: isSwiping && !isMine ? `translateX(${swipeDistanceX}px)` : isActiveMenu ? 'scale(1.02)' : 'translateX(0)',
+                                    transition: isSwiping ? 'none' : 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
                                 }}
                             >
                                 {!isMine && currentChat?.is_group && !isConsecutive && (
@@ -803,9 +813,9 @@ export default function ChatScreen() {
                                             <ChevronDown size={18} />
                                         </button>
 
-                                        {activeMenuId === msg.id && (
-                                            <div className="absolute right-0 top-6 z-50">
-                                                <div className="absolute right-0 -top-16 flex gap-1 p-2 bg-[#2C2C2E] rounded-full shadow-2xl border border-[#38383A] animate-[fadeIn_0.15s_ease-out] z-50">
+                                        {isActiveMenu && (
+                                            <div className="absolute right-0 top-6 z-[60]">
+                                                <div className="absolute right-0 -top-16 flex gap-1 p-2 bg-[#2C2C2E]/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/10 animate-[fadeIn_0.15s_ease-out] z-[60]">
                                                     {['👍', '❤️', '😂', '😮', '😢'].map(emoji => (
                                                         <button key={emoji} onClick={() => handleReaction(msg.id, emoji)} className="text-xl hover:scale-125 transition-transform px-1.5 focus:outline-none">{emoji}</button>
                                                     ))}
