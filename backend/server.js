@@ -119,7 +119,7 @@ io.on('connection', (socket) => {
     });
 
     // WebRTC Signaling Events
-    socket.on('call_user', (data) => {
+    socket.on('call_user', async (data) => {
         // data: { userToCall: socket_id or room_id, signalData: offer, from: senderId, name: senderName, isVideoCall: boolean, chatId: string|number }
         // We broadcast to the specific user's personal room
         io.to(`user_${data.userToCall}`).emit('incoming_call', {
@@ -129,6 +129,21 @@ io.on('connection', (socket) => {
             isVideoCall: data.isVideoCall,
             chatId: data.chatId
         });
+
+        // Trigger push notification if the user is not focused/active
+        try {
+            const userCheck = await db.query('SELECT is_online FROM Users WHERE id = $1', [data.userToCall]);
+            if (userCheck.rows.length > 0 && !userCheck.rows[0].is_online) {
+                const notifications = require('./routes/notifications');
+                notifications.sendNotificationToUser(data.userToCall, {
+                    title: `Incoming ${data.isVideoCall ? 'Video' : 'Audio'} Call`,
+                    body: `${data.name} is calling you`,
+                    url: '/chats'
+                });
+            }
+        } catch (pushErr) {
+            console.error('Error triggering push notification for call:', pushErr);
+        }
     });
 
     socket.on('answer_call', (data) => {

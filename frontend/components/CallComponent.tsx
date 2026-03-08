@@ -146,8 +146,8 @@ export default function CallComponent() {
                             <div className="w-32 h-32 bg-[#38383A] rounded-full flex items-center justify-center shadow-2xl mb-6 shadow-[var(--color-brand-primary)]/20">
                                 <span className="text-5xl text-white font-light">{callData?.name?.charAt(0).toUpperCase() || '?'}</span>
                             </div>
-                            {/* Hidden audio element for remote stream */}
-                            <video ref={remoteVideoRef} autoPlay playsInline className="hidden" />
+                            {/* explicit audio element for remote stream rendering */}
+                            <audio ref={remoteVideoRef} autoPlay playsInline className="hidden" />
                         </div>
                     )}
 
