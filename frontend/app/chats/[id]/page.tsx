@@ -224,7 +224,7 @@ export default function ChatScreen() {
     };
 
     let typingTimeout: NodeJS.Timeout;
-    const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleTyping = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setNewMessage(e.target.value);
 
         if (!isTyping) {
@@ -407,7 +407,7 @@ export default function ChatScreen() {
         }
     };
 
-    const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const items = e.clipboardData?.items;
         if (!items) return;
 
@@ -813,48 +813,7 @@ export default function ChatScreen() {
                                             <ChevronDown size={18} />
                                         </button>
 
-                                        {isActiveMenu && (
-                                            <div className="absolute right-0 top-6 z-[60]">
-                                                <div className="absolute right-0 -top-16 flex gap-1 p-2 bg-[#2C2C2E]/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/10 animate-[fadeIn_0.15s_ease-out] z-[60]">
-                                                    {['👍', '❤️', '😂', '😮', '😢'].map(emoji => (
-                                                        <button key={emoji} onClick={() => handleReaction(msg.id, emoji)} className="text-xl hover:scale-125 transition-transform px-1.5 focus:outline-none">{emoji}</button>
-                                                    ))}
-                                                </div>
-                                                <div className="bg-[#2C2C2E] border border-[#38383A] rounded-xl shadow-xl w-40 overflow-hidden">
-                                                    <button
-                                                        onClick={() => { setReplyingTo(msg); setActiveMenuId(null); }}
-                                                        className="w-full px-4 py-2.5 text-left text-[14px] text-white hover:bg-[#38383A] flex items-center transition-colors"
-                                                    >
-                                                        <Reply size={16} className="mr-2 opacity-70" /> Reply
-                                                    </button>
-                                                    <div className="h-[1px] bg-[#38383A] w-full" />
-                                                    <button
-                                                        onClick={() => { setShowForwardModal(msg); setActiveMenuId(null); }}
-                                                        className="w-full px-4 py-2.5 text-left text-[14px] text-white hover:bg-[#38383A] flex items-center transition-colors"
-                                                    >
-                                                        <Forward size={16} className="mr-2 opacity-70" /> Forward
-                                                    </button>
-                                                    <div className="h-[1px] bg-[#38383A] w-full" />
-                                                    {isMine && (
-                                                        <>
-                                                            <button
-                                                                onClick={() => initiateEdit(msg)}
-                                                                className="w-full px-4 py-2.5 text-left text-[14px] text-white hover:bg-[#38383A] flex items-center transition-colors"
-                                                            >
-                                                                <Edit2 size={16} className="mr-2 opacity-70" /> Edit
-                                                            </button>
-                                                            <div className="h-[1px] bg-[#38383A] w-full" />
-                                                            <button
-                                                                onClick={() => handleDeleteMessage(msg.id)}
-                                                                className="w-full px-4 py-2.5 text-left text-[14px] text-red-500 hover:bg-[#38383A] flex items-center transition-colors"
-                                                            >
-                                                                <Trash2 size={16} className="mr-2 opacity-70" /> Delete
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
+
                                     </div>
                                 )}
 
@@ -902,6 +861,73 @@ export default function ChatScreen() {
                 })}
                 <div ref={messagesEndRef} className="h-4" />
             </div>
+
+            {/* Context Menu Bottom Sheet */}
+            {activeMenuId && (
+                <div className="fixed bottom-0 left-0 right-0 z-[60] bg-[#1C1C1E] border-t border-[#38383A] rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.5)] animate-[slideUp_0.3s_ease-out_forwards]">
+                    <div className="p-4 sm:p-6 pb-8">
+                        <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-6" />
+
+                        {/* Reaction Emojis */}
+                        <div className="flex justify-around items-center mb-6 bg-[#2C2C2E] border border-white/5 rounded-full p-3 mx-2 shadow-inner">
+                            {['👍', '❤️', '😂', '😮', '😢'].map((emoji, idx) => (
+                                <button
+                                    key={emoji}
+                                    onClick={() => handleReaction(activeMenuId, emoji)}
+                                    className="text-3xl sm:text-4xl hover:scale-125 transition-transform focus:outline-none animate-[popIn_0.4s_cubic-bezier(0.175,0.885,0.32,1.275)_forwards]"
+                                    style={{ animationDelay: `${idx * 0.05}s`, opacity: 0, animationFillMode: 'forwards' }}
+                                >
+                                    {emoji}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Action Buttons */}
+                        {(() => {
+                            const activeMsg = messages.find(m => m.id === activeMenuId);
+                            if (!activeMsg) return null;
+                            const isMine = activeMsg.sender_id === user?.id;
+
+                            return (
+                                <div className="space-y-1 mx-2">
+                                    <button
+                                        onClick={() => { setReplyingTo(activeMsg); setActiveMenuId(null); }}
+                                        className="w-full px-5 py-4 bg-[#2C2C2E] hover:bg-[#38383A] text-left text-[16px] text-white flex items-center transition-colors rounded-t-2xl active:bg-white/10"
+                                    >
+                                        <Reply size={22} className="mr-4 opacity-80 text-[var(--color-brand-primary)]" /> Reply
+                                    </button>
+                                    <div className="h-[1px] bg-[#38383A] w-full" />
+                                    <button
+                                        onClick={() => { setShowForwardModal(activeMsg); setActiveMenuId(null); }}
+                                        className={`w-full px-5 py-4 bg-[#2C2C2E] hover:bg-[#38383A] text-left text-[16px] text-white flex items-center transition-colors active:bg-white/10 ${!isMine ? 'rounded-b-2xl' : ''}`}
+                                    >
+                                        <Forward size={22} className="mr-4 opacity-80 text-green-400" /> Forward
+                                    </button>
+
+                                    {isMine && (
+                                        <>
+                                            <div className="h-[1px] bg-[#38383A] w-full" />
+                                            <button
+                                                onClick={() => { initiateEdit(activeMsg); setActiveMenuId(null); }}
+                                                className="w-full px-5 py-4 bg-[#2C2C2E] hover:bg-[#38383A] text-left text-[16px] text-white flex items-center transition-colors active:bg-white/10"
+                                            >
+                                                <Edit2 size={22} className="mr-4 opacity-80 text-blue-400" /> Edit
+                                            </button>
+                                            <div className="h-[1px] bg-[#38383A] w-full" />
+                                            <button
+                                                onClick={() => { handleDeleteMessage(activeMenuId); setActiveMenuId(null); }}
+                                                className="w-full px-5 py-4 bg-[#2C2C2E] hover:bg-[#38383A] text-left text-[16px] text-red-500 flex items-center transition-colors active:bg-white/10 rounded-b-2xl"
+                                            >
+                                                <Trash2 size={22} className="mr-4 opacity-80 text-red-500" /> Delete
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })()}
+                    </div>
+                </div>
+            )}
 
             {/* Forward Modal */}
             {showForwardModal && (
