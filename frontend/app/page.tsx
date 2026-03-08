@@ -94,14 +94,22 @@ export default function LandingPage() {
           Sampark is an Indian messaging platform built for privacy and speed. Connect instantly using just a username—no phone numbers required.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center gap-5">
+        <div className="flex flex-col sm:flex-row flex-wrap justify-center items-center gap-4">
           <button
             onClick={handleCTA}
-            className="flex items-center justify-center gap-2 bg-white text-black px-10 py-4 rounded-full font-semibold text-lg hover:scale-105 transition-all shadow-xl shadow-white/10 w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 bg-white text-black px-8 py-4 rounded-full font-semibold text-lg hover:scale-105 transition-all shadow-xl shadow-white/10 w-full sm:w-auto"
           >
-            Download for Web
+            Open Web App
             <ArrowRight size={20} />
           </button>
+          <a
+            href="/Sampark.apk"
+            download
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-full font-semibold text-lg hover:scale-105 transition-all shadow-xl shadow-green-500/20 w-full sm:w-auto"
+          >
+            <Smartphone size={20} />
+            Download APK
+          </a>
           {!user && (
             <button
               onClick={() => router.push('/register')}
@@ -250,12 +258,22 @@ export default function LandingPage() {
         <div className="max-w-3xl mx-auto space-y-8">
           <h2 className="text-5xl font-bold tracking-tight text-white">Ready to join Sampark?</h2>
           <p className="text-xl text-gray-400">Claim your username today before someone else does.</p>
-          <button
-            onClick={handleCTA}
-            className="bg-white text-black px-12 py-5 rounded-full font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/10"
-          >
-            {user ? 'Go to Dashboard' : 'Get Started for Free'}
-          </button>
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+            <button
+              onClick={handleCTA}
+              className="bg-white text-black px-10 py-5 rounded-full font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-white/10 w-full sm:w-auto"
+            >
+              {user ? 'Go to Dashboard' : 'Get Started for Free'}
+            </button>
+            <a
+              href="/Sampark.apk"
+              download
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-10 py-5 rounded-full font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-green-500/20 w-full sm:w-auto"
+            >
+              <Smartphone size={22} />
+              Download Android App
+            </a>
+          </div>
         </div>
       </section>
 
