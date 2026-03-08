@@ -23,6 +23,7 @@ export default function ChatScreen() {
     const [editingMessage, setEditingMessage] = useState<any>(null);
     const [replyingTo, setReplyingTo] = useState<any>(null);
     const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
+    const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
     const [showThemePicker, setShowThemePicker] = useState(false);
@@ -604,6 +605,7 @@ export default function ChatScreen() {
                 window.navigator.vibrate(50);
             }
             setActiveMenuId(msg.id);
+            setMenuRect((e.currentTarget as HTMLElement).getBoundingClientRect());
             setSwipingMessageId(null);
             setSwipeDistanceX(0);
         }, LONG_PRESS_DELAY);
@@ -739,7 +741,7 @@ export default function ChatScreen() {
                 {activeMenuId && (
                     <div
                         className="fixed inset-0 bg-black/60 backdrop-blur-[4px] z-[40] transition-all duration-200"
-                        onClick={() => setActiveMenuId(null)}
+                        onClick={() => { setActiveMenuId(null); setMenuRect(null); }}
                     />
                 )}
 
@@ -752,10 +754,12 @@ export default function ChatScreen() {
                     return (
                         <div
                             key={msg.id || index}
-                            className={`flex relative ${isMine ? 'justify-end' : 'justify-start'} ${isConsecutive ? '-mt-1' : ''}`}
+                            className={`flex relative message-bubble-container ${isMine ? 'justify-end' : 'justify-start'} ${isConsecutive ? '-mt-1' : ''}`}
                             onTouchStart={(e) => handleTouchStart(e, msg)}
                             onTouchMove={handleTouchMove}
                             onTouchEnd={() => handleTouchEnd(msg)}
+                            onContextMenu={(e) => e.preventDefault()}
+                            style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
                         >
                             {/* Reply Icon Indicator (revealed on swipe) */}
                             {!isMine && (
@@ -807,7 +811,16 @@ export default function ChatScreen() {
                                 {!msg.is_deleted && (
                                     <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
-                                            onClick={() => setActiveMenuId(activeMenuId === msg.id ? null : msg.id)}
+                                            onClick={(e) => {
+                                                if (activeMenuId === msg.id) {
+                                                    setActiveMenuId(null);
+                                                    setMenuRect(null);
+                                                } else {
+                                                    setActiveMenuId(msg.id);
+                                                    const container = e.currentTarget.closest('.message-bubble-container');
+                                                    if (container) setMenuRect(container.getBoundingClientRect());
+                                                }
+                                            }}
                                             className="text-white/80 hover:text-white bg-black/10 rounded-full p-0.5 backdrop-blur-sm"
                                         >
                                             <ChevronDown size={18} />
@@ -862,63 +875,73 @@ export default function ChatScreen() {
                 <div ref={messagesEndRef} className="h-4" />
             </div>
 
-            {/* Context Menu Bottom Sheet */}
-            {activeMenuId && (
-                <div className="fixed bottom-0 left-0 right-0 z-[60] bg-[#1C1C1E] border-t border-[#38383A] rounded-t-[32px] shadow-[0_-10px_40px_rgba(0,0,0,0.5)] animate-[slideUp_0.3s_ease-out_forwards]">
-                    <div className="p-4 sm:p-6 pb-8">
-                        <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-6" />
+            {/* Dynamic Floating Context Menu */}
+            {activeMenuId && menuRect && (
+                <div
+                    className="fixed z-[60] flex flex-col gap-2 animate-[popIn_0.2s_ease-out_forwards]"
+                    style={{
+                        top: menuRect.bottom + 250 > window.innerHeight
+                            ? Math.max(10, window.innerHeight - 250) // Nudge up if it clips bottom
+                            : menuRect.bottom + 8, // Directly below message
+                        ...(messages.find(m => m.id === activeMenuId)?.sender_id === user?.id
+                            ? { right: Math.max(10, window.innerWidth - menuRect.right) } // Align to right (My message)
+                            : { left: Math.max(10, menuRect.left) } // Align to left (Other's)
+                        ),
+                        maxWidth: 'calc(100vw - 20px)'
+                    }}
+                >
+                    {/* Reaction Emojis - Floating Row */}
+                    <div className="flex gap-2 p-2 bg-[#2C2C2E]/90 backdrop-blur-xl rounded-full shadow-2xl border border-white/10 self-end sm:self-auto">
+                        {['👍', '❤️', '😂', '😮', '😢'].map((emoji, idx) => (
+                            <button
+                                key={emoji}
+                                onClick={() => handleReaction(activeMenuId, emoji)}
+                                className="text-2xl hover:scale-125 transition-transform px-1 focus:outline-none animate-[popIn_0.3s_cubic-bezier(0.175,0.885,0.32,1.275)_forwards]"
+                                style={{ animationDelay: `${idx * 0.04}s`, opacity: 0, animationFillMode: 'forwards' }}
+                            >
+                                {emoji}
+                            </button>
+                        ))}
+                    </div>
 
-                        {/* Reaction Emojis */}
-                        <div className="flex justify-around items-center mb-6 bg-[#2C2C2E] border border-white/5 rounded-full p-3 mx-2 shadow-inner">
-                            {['👍', '❤️', '😂', '😮', '😢'].map((emoji, idx) => (
-                                <button
-                                    key={emoji}
-                                    onClick={() => handleReaction(activeMenuId, emoji)}
-                                    className="text-3xl sm:text-4xl hover:scale-125 transition-transform focus:outline-none animate-[popIn_0.4s_cubic-bezier(0.175,0.885,0.32,1.275)_forwards]"
-                                    style={{ animationDelay: `${idx * 0.05}s`, opacity: 0, animationFillMode: 'forwards' }}
-                                >
-                                    {emoji}
-                                </button>
-                            ))}
-                        </div>
-
-                        {/* Action Buttons */}
+                    {/* Action Block */}
+                    <div className="bg-[#2C2C2E]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl w-48 overflow-hidden">
                         {(() => {
                             const activeMsg = messages.find(m => m.id === activeMenuId);
                             if (!activeMsg) return null;
                             const isMine = activeMsg.sender_id === user?.id;
 
                             return (
-                                <div className="space-y-1 mx-2">
+                                <div className="flex flex-col">
                                     <button
-                                        onClick={() => { setReplyingTo(activeMsg); setActiveMenuId(null); }}
-                                        className="w-full px-5 py-4 bg-[#2C2C2E] hover:bg-[#38383A] text-left text-[16px] text-white flex items-center transition-colors rounded-t-2xl active:bg-white/10"
+                                        onClick={() => { setReplyingTo(activeMsg); setActiveMenuId(null); setMenuRect(null); }}
+                                        className="w-full px-4 py-3 text-left text-[14px] text-white hover:bg-[#38383A] flex items-center transition-colors"
                                     >
-                                        <Reply size={22} className="mr-4 opacity-80 text-[var(--color-brand-primary)]" /> Reply
+                                        <Reply size={18} className="mr-3 opacity-70 text-[var(--color-brand-primary)]" /> Reply
                                     </button>
-                                    <div className="h-[1px] bg-[#38383A] w-full" />
+                                    <div className="h-[1px] bg-white/5 w-full" />
                                     <button
-                                        onClick={() => { setShowForwardModal(activeMsg); setActiveMenuId(null); }}
-                                        className={`w-full px-5 py-4 bg-[#2C2C2E] hover:bg-[#38383A] text-left text-[16px] text-white flex items-center transition-colors active:bg-white/10 ${!isMine ? 'rounded-b-2xl' : ''}`}
+                                        onClick={() => { setShowForwardModal(activeMsg); setActiveMenuId(null); setMenuRect(null); }}
+                                        className="w-full px-4 py-3 text-left text-[14px] text-white hover:bg-[#38383A] flex items-center transition-colors"
                                     >
-                                        <Forward size={22} className="mr-4 opacity-80 text-green-400" /> Forward
+                                        <Forward size={18} className="mr-3 opacity-70 text-green-400" /> Forward
                                     </button>
 
                                     {isMine && (
                                         <>
-                                            <div className="h-[1px] bg-[#38383A] w-full" />
+                                            <div className="h-[1px] bg-white/5 w-full" />
                                             <button
-                                                onClick={() => { initiateEdit(activeMsg); setActiveMenuId(null); }}
-                                                className="w-full px-5 py-4 bg-[#2C2C2E] hover:bg-[#38383A] text-left text-[16px] text-white flex items-center transition-colors active:bg-white/10"
+                                                onClick={() => { initiateEdit(activeMsg); setActiveMenuId(null); setMenuRect(null); }}
+                                                className="w-full px-4 py-3 text-left text-[14px] text-white hover:bg-[#38383A] flex items-center transition-colors"
                                             >
-                                                <Edit2 size={22} className="mr-4 opacity-80 text-blue-400" /> Edit
+                                                <Edit2 size={18} className="mr-3 opacity-70 text-blue-400" /> Edit
                                             </button>
-                                            <div className="h-[1px] bg-[#38383A] w-full" />
+                                            <div className="h-[1px] bg-white/5 w-full" />
                                             <button
-                                                onClick={() => { handleDeleteMessage(activeMenuId); setActiveMenuId(null); }}
-                                                className="w-full px-5 py-4 bg-[#2C2C2E] hover:bg-[#38383A] text-left text-[16px] text-red-500 flex items-center transition-colors active:bg-white/10 rounded-b-2xl"
+                                                onClick={() => { handleDeleteMessage(activeMenuId); setActiveMenuId(null); setMenuRect(null); }}
+                                                className="w-full px-4 py-3 text-left text-[14px] text-red-500 hover:bg-[#38383A] flex items-center transition-colors"
                                             >
-                                                <Trash2 size={22} className="mr-4 opacity-80 text-red-500" /> Delete
+                                                <Trash2 size={18} className="mr-3 opacity-70 text-red-500" /> Delete
                                             </button>
                                         </>
                                     )}
