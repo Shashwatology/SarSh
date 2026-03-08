@@ -447,6 +447,20 @@ export default function ChatScreen() {
         }
     };
 
+    const handleClearChat = async () => {
+        if (!window.confirm('Are you sure you want to clear all messages in this chat? This cannot be undone.')) return;
+
+        try {
+            await api.delete(`/messages/clear/${id}`);
+            setMessages([]);
+            setShowThemePicker(false);
+            vibrate(50);
+        } catch (err) {
+            console.error('Error clearing chat:', err);
+            alert('Failed to clear chat');
+        }
+    };
+
     const handleThemeChange = async (themeName: string) => {
         if (!currentChat) return;
         try {
@@ -752,6 +766,13 @@ export default function ChatScreen() {
                                         {currentChat?.theme === theme && <Check size={16} className="text-[var(--color-brand-primary)]" />}
                                     </button>
                                 ))}
+                                <div className="h-[1px] bg-white/10 my-1 mx-2"></div>
+                                <button
+                                    onClick={handleClearChat}
+                                    className="w-full text-left px-3 py-2 rounded-xl text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors"
+                                >
+                                    <Trash2 size={16} /> Clear Chat
+                                </button>
                             </div>
                         </div>
                     )}

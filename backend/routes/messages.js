@@ -242,4 +242,30 @@ router.post('/:id/react', auth, async (req, res) => {
     }
 });
 
+// Clear all messages in a chat
+router.delete('/clear/:chatId', auth, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const userId = req.user.id;
+
+        // Check if user is a participant of the chat
+        const participant = await pool.query(
+            'SELECT * FROM ChatParticipants WHERE chat_id = $1 AND user_id = $2',
+            [chatId, userId]
+        );
+
+        if (participant.rows.length === 0) {
+            return res.status(403).json({ msg: 'Unauthorized to clear this chat' });
+        }
+
+        // Hard delete all messages from this chat
+        await pool.query('DELETE FROM Messages WHERE chat_id = $1', [chatId]);
+
+        res.json({ msg: 'Chat cleared successfully' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error clearing chat');
+    }
+});
+
 module.exports = router;
