@@ -30,6 +30,13 @@ export default function ChatScreen() {
     const [showForwardModal, setShowForwardModal] = useState<any>(null); // holds message to forward
     const [allChats, setAllChats] = useState<any[]>([]);
     const [showAttachments, setShowAttachments] = useState(false);
+    const [showScrollFAB, setShowScrollFAB] = useState(false);
+
+    const vibrate = (ms = 10) => {
+        if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+            window.navigator.vibrate(ms);
+        }
+    };
 
     // Canvas State
     const [showCanvas, setShowCanvas] = useState(false);
@@ -212,7 +219,22 @@ export default function ChatScreen() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages, otherUserTyping]);
 
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+        if (scrollHeight - scrollTop - clientHeight > 300) {
+            setShowScrollFAB(true);
+        } else {
+            setShowScrollFAB(false);
+        }
+    };
+
+    const scrollToBottom = () => {
+        vibrate(10);
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
     const handleReaction = async (messageId: number, reaction: string) => {
+        vibrate(10);
         try {
             const res = await api.post(`/messages/${messageId}/react`, { reaction });
             setActiveMenuId(null);
@@ -243,6 +265,7 @@ export default function ChatScreen() {
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newMessage.trim()) return;
+        vibrate(10);
 
         if (editingMessage) {
             try {
@@ -600,10 +623,8 @@ export default function ChatScreen() {
 
         // Start long press timer
         longPressTimerRef.current = setTimeout(() => {
-            // Trigger haptic feedback if supported
-            if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-                window.navigator.vibrate(50);
-            }
+            // Trigger haptic feedback
+            vibrate(50);
             setActiveMenuId(msg.id);
             setMenuRect((e.currentTarget as HTMLElement).getBoundingClientRect());
             setSwipingMessageId(null);
@@ -652,9 +673,7 @@ export default function ChatScreen() {
 
         if (swipeDistanceX >= SWIPE_THRESHOLD) {
             setReplyingTo(msg);
-            if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-                window.navigator.vibrate(50);
-            }
+            vibrate(50);
         }
         setSwipeStartX(null);
         setSwipeStartY(null);
@@ -740,7 +759,10 @@ export default function ChatScreen() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 z-10 flex flex-col gap-3 overflow-x-hidden chat-bg-pattern bg-[var(--color-brand-bg)] transition-colors duration-300 relative">
+            <div
+                className="flex-1 overflow-y-auto px-4 py-6 md:px-8 z-10 flex flex-col gap-3 overflow-x-hidden chat-bg-pattern bg-[var(--color-brand-bg)] transition-colors duration-300 relative"
+                onScroll={handleScroll}
+            >
 
                 {/* Blur Overlay when a message menu is open */}
                 {activeMenuId && (
@@ -753,131 +775,177 @@ export default function ChatScreen() {
                 {messages.map((msg, index) => {
                     const isMine = msg.sender_id === user?.id;
                     const isConsecutive = index > 0 && messages[index - 1].sender_id === msg.sender_id;
+                    const isNextConsecutive = index < messages.length - 1 && messages[index + 1].sender_id === msg.sender_id;
+
+                    const isFirstConsecutive = !isConsecutive;
+                    const isLastConsecutive = !isNextConsecutive;
+
+                    // Date Separator Logic
+                    const msgDate = new Date(msg.created_at || new Date());
+                    const prevMsgDate = index > 0 ? new Date(messages[index - 1].created_at || new Date()) : null;
+                    const showDateSeparator = !prevMsgDate || msgDate.toDateString() !== prevMsgDate.toDateString();
+
+                    // Bubble Border Radius Logic
+                    let borderRadiusClass = 'rounded-[20px]';
+                    if (isMine) {
+                        if (isFirstConsecutive && isNextConsecutive) borderRadiusClass += ' rounded-br-[4px]';
+                        else if (!isFirstConsecutive && isNextConsecutive) borderRadiusClass += ' rounded-tr-[4px] rounded-br-[4px]';
+                        else if (!isFirstConsecutive && !isNextConsecutive) borderRadiusClass += ' rounded-tr-[4px]';
+                        else borderRadiusClass += ' rounded-br-[4px]'; // Single message
+                    } else {
+                        if (isFirstConsecutive && isNextConsecutive) borderRadiusClass += ' rounded-bl-[4px]';
+                        else if (!isFirstConsecutive && isNextConsecutive) borderRadiusClass += ' rounded-tl-[4px] rounded-bl-[4px]';
+                        else if (!isFirstConsecutive && !isNextConsecutive) borderRadiusClass += ' rounded-tl-[4px]';
+                        else borderRadiusClass += ' rounded-bl-[4px]'; // Single message
+                    }
+
                     const isSwiping = swipingMessageId === msg.id;
                     const isActiveMenu = activeMenuId === msg.id;
 
                     return (
-                        <div
-                            key={msg.id || index}
-                            className={`flex relative message-bubble-container ${isMine ? 'justify-end' : 'justify-start'} ${isConsecutive ? '-mt-1' : ''}`}
-                            onTouchStart={(e) => handleTouchStart(e, msg)}
-                            onTouchMove={handleTouchMove}
-                            onTouchEnd={() => handleTouchEnd(msg)}
-                            onContextMenu={(e) => e.preventDefault()}
-                            style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
-                        >
-                            {/* Reply Icon Indicator (revealed on swipe) */}
-                            {!isMine && (
-                                <div
-                                    className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center justify-center transition-opacity"
-                                    style={{
-                                        opacity: isSwiping ? Math.min(swipeDistanceX / SWIPE_THRESHOLD, 1) : 0,
-                                        width: '40px',
-                                        zIndex: 0
-                                    }}
-                                >
-                                    <div className="bg-white/10 p-2 rounded-full">
-                                        <Reply size={16} className="text-white" />
+                        <div key={msg.id || index} className="flex flex-col mb-0.5">
+                            {/* Date Separator Pill */}
+                            {showDateSeparator && (
+                                <div className="flex justify-center my-4 opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]">
+                                    <div className="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-medium text-white/80 border border-white/5 uppercase tracking-wide">
+                                        {format(msgDate, 'dd MMM, yyyy')}
                                     </div>
                                 </div>
                             )}
 
                             <div
-                                className={`max-w-[85%] md:max-w-[70%] px-4 py-2.5 relative text-[15px] leading-relaxed group border border-white/5 transition-all duration-200
-                                    ${isMine
-                                        ? 'bg-[var(--color-brand-bubble-me)] text-white rounded-[20px] rounded-br-[4px]'
-                                        : 'bg-[var(--color-brand-bubble-other)] text-white rounded-[20px] rounded-bl-[4px]'
-                                    } ${msg.is_deleted ? 'opacity-70 italic' : ''} 
-                                      ${isActiveMenu ? 'scale-[1.02] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[50] ring-1 ring-white/10' : 'shadow-md z-[1]'}`}
-                                style={{
-                                    transform: isSwiping && !isMine ? `translateX(${swipeDistanceX}px)` : isActiveMenu ? 'scale(1.02)' : 'translateX(0)',
-                                    transition: isSwiping ? 'none' : 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-                                }}
+                                className={`flex relative message-bubble-container ${isMine ? 'justify-end' : 'justify-start'} ${isConsecutive && !showDateSeparator ? '-mt-1' : ''}`}
+                                onTouchStart={(e) => handleTouchStart(e, msg)}
+                                onTouchMove={handleTouchMove}
+                                onTouchEnd={() => handleTouchEnd(msg)}
+                                onContextMenu={(e) => e.preventDefault()}
+                                style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
                             >
-                                {!isMine && currentChat?.is_group && !isConsecutive && (
-                                    <div className="text-[12px] font-semibold text-[var(--color-brand-primary)] mb-0.5 opacity-90">
-                                        {msg.sender_name || 'Participant'}
+                                {/* Reply Icon Indicator (revealed on swipe) */}
+                                {!isMine && (
+                                    <div
+                                        className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center justify-center transition-opacity"
+                                        style={{
+                                            opacity: isSwiping ? Math.min(swipeDistanceX / SWIPE_THRESHOLD, 1) : 0,
+                                            width: '40px',
+                                            zIndex: 0
+                                        }}
+                                    >
+                                        <div className="bg-white/10 p-2 rounded-full">
+                                            <Reply size={16} className="text-white" />
+                                        </div>
                                     </div>
                                 )}
 
-                                {msg.is_forwarded && (
-                                    <div className="flex items-center text-[12px] text-white/70 italic mb-1 border-b border-white/10 pb-0.5">
-                                        <Forward size={12} className="mr-1" /> Forwarded
-                                    </div>
-                                )}
+                                <div
+                                    className={`max-w-[85%] md:max-w-[70%] px-4 py-2.5 relative text-[15px] leading-relaxed group border border-white/5 transition-all duration-200
+                                    ${isMine
+                                            ? `bg-[var(--color-brand-bubble-me)] text-white ${borderRadiusClass}`
+                                            : `bg-[var(--color-brand-bubble-other)] text-white ${borderRadiusClass}`
+                                        } ${msg.is_deleted ? 'opacity-70 italic' : ''} 
+                                      ${isActiveMenu ? 'scale-[1.02] shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-[50] ring-1 ring-white/10' : 'shadow-md z-[1]'}`}
+                                    style={{
+                                        transform: isSwiping && !isMine ? `translateX(${swipeDistanceX}px)` : isActiveMenu ? 'scale(1.02)' : 'translateX(0)',
+                                        transition: isSwiping ? 'none' : 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                                    }}
+                                >
+                                    {!isMine && currentChat?.is_group && !isConsecutive && (
+                                        <div className="text-[12px] font-semibold text-[var(--color-brand-primary)] mb-0.5 opacity-90">
+                                            {msg.sender_name || 'Participant'}
+                                        </div>
+                                    )}
 
-                                {msg.reply_to_id && (
-                                    <div className="bg-black/20 border-l-4 border-[var(--color-brand-primary)] rounded-md p-2 mb-2 text-sm mt-1">
-                                        <div className="font-semibold text-[var(--color-brand-primary)] text-xs mb-0.5">{msg.reply_to_username || 'User'}</div>
-                                        <div className="text-white/80 line-clamp-2 text-xs">{msg.reply_to_content || (msg.reply_to_media_url ? 'Media attached' : 'Deleted message')}</div>
-                                    </div>
-                                )}
+                                    {msg.is_forwarded && (
+                                        <div className="flex items-center text-[12px] text-white/70 italic mb-1 border-b border-white/10 pb-0.5">
+                                            <Forward size={12} className="mr-1" /> Forwarded
+                                        </div>
+                                    )}
 
-                                {!msg.is_deleted && (
-                                    <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            onClick={(e) => {
-                                                if (activeMenuId === msg.id) {
-                                                    setActiveMenuId(null);
-                                                    setMenuRect(null);
-                                                } else {
-                                                    setActiveMenuId(msg.id);
-                                                    const container = e.currentTarget.closest('.message-bubble-container');
-                                                    if (container) setMenuRect(container.getBoundingClientRect());
-                                                }
-                                            }}
-                                            className="text-white/80 hover:text-white bg-black/10 rounded-full p-0.5 backdrop-blur-sm"
-                                        >
-                                            <ChevronDown size={18} />
-                                        </button>
+                                    {msg.reply_to_id && (
+                                        <div className="bg-black/20 border-l-4 border-[var(--color-brand-primary)] rounded-md p-2 mb-2 text-sm mt-1">
+                                            <div className="font-semibold text-[var(--color-brand-primary)] text-xs mb-0.5">{msg.reply_to_username || 'User'}</div>
+                                            <div className="text-white/80 line-clamp-2 text-xs">{msg.reply_to_content || (msg.reply_to_media_url ? 'Media attached' : 'Deleted message')}</div>
+                                        </div>
+                                    )}
+
+                                    {!msg.is_deleted && (
+                                        <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={(e) => {
+                                                    if (activeMenuId === msg.id) {
+                                                        setActiveMenuId(null);
+                                                        setMenuRect(null);
+                                                    } else {
+                                                        setActiveMenuId(msg.id);
+                                                        const container = e.currentTarget.closest('.message-bubble-container');
+                                                        if (container) setMenuRect(container.getBoundingClientRect());
+                                                    }
+                                                }}
+                                                className="text-white/80 hover:text-white bg-black/10 rounded-full p-0.5 backdrop-blur-sm"
+                                            >
+                                                <ChevronDown size={18} />
+                                            </button>
 
 
-                                    </div>
-                                )}
+                                        </div>
+                                    )}
 
-                                {(msg.media_type === 'image' || (!msg.media_type && msg.media_url)) && msg.media_url && (
-                                    <img src={msg.media_url} alt="Media" className="rounded-xl mb-1 mt-1 max-w-full h-auto max-h-[300px] object-cover border border-white/10" />
-                                )}
-                                {msg.media_type === 'audio' && msg.media_url && (
-                                    <div className="mt-1 mb-2">
-                                        <audio controls src={msg.media_url} className="h-10 outline-none max-w-[200px] md:max-w-[250px]" />
+                                    {(msg.media_type === 'image' || (!msg.media_type && msg.media_url)) && msg.media_url && (
+                                        <img src={msg.media_url} alt="Media" className="rounded-xl mb-1 mt-1 max-w-full h-auto max-h-[300px] object-cover border border-white/10" />
+                                    )}
+                                    {msg.media_type === 'audio' && msg.media_url && (
+                                        <div className="mt-1 mb-2">
+                                            <audio controls src={msg.media_url} className="h-10 outline-none max-w-[200px] md:max-w-[250px]" />
+                                        </div>
+                                    )}
+                                    {msg.media_type === 'document' && msg.media_url && (
+                                        <div className="mt-1 mb-2 flex items-center bg-black/20 p-3 rounded-xl border border-white/10">
+                                            <FileText size={24} className="mr-3 opacity-80" />
+                                            <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="hover:underline flex-1 truncate font-medium max-w-[180px]">
+                                                {msg.content || 'Document'}
+                                            </a>
+                                        </div>
+                                    )}
+                                    <div className="flex flex-wrap items-end gap-3">
+                                        {msg.content && msg.media_type !== 'document' && <span className={`break-words whitespace-pre-wrap flex-1 ${msg.is_deleted ? 'text-white/70 text-[15px]' : ''}`}>{msg.content}</span>}
+                                        <div className={`flex items-center text-[11px] whitespace-nowrap pt-1 ml-auto ${isMine ? 'text-blue-100' : 'text-[var(--color-text-secondary)]'}`}>
+                                            {msg.is_edited && !msg.is_deleted && <span className="mr-1.5 opacity-70 italic">edited</span>}
+                                            <span>{format(new Date(msg.created_at || new Date()), 'HH:mm')}</span>
+                                            {isMine && !msg.is_deleted && (
+                                                <span className="ml-1 flex items-center">
+                                                    {msg.status === 'read' ? <CheckCheck size={14} className="text-white" /> :
+                                                        msg.status === 'delivered' ? <CheckCheck size={14} className="text-blue-200 opacity-60" /> :
+                                                            <Check size={14} className="text-blue-200 opacity-60" />}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
-                                )}
-                                {msg.media_type === 'document' && msg.media_url && (
-                                    <div className="mt-1 mb-2 flex items-center bg-black/20 p-3 rounded-xl border border-white/10">
-                                        <FileText size={24} className="mr-3 opacity-80" />
-                                        <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="hover:underline flex-1 truncate font-medium max-w-[180px]">
-                                            {msg.content || 'Document'}
-                                        </a>
-                                    </div>
-                                )}
-                                <div className="flex flex-wrap items-end gap-3">
-                                    {msg.content && msg.media_type !== 'document' && <span className={`break-words whitespace-pre-wrap flex-1 ${msg.is_deleted ? 'text-white/70 text-[15px]' : ''}`}>{msg.content}</span>}
-                                    <div className={`flex items-center text-[11px] whitespace-nowrap pt-1 ml-auto ${isMine ? 'text-blue-100' : 'text-[var(--color-text-secondary)]'}`}>
-                                        {msg.is_edited && !msg.is_deleted && <span className="mr-1.5 opacity-70 italic">edited</span>}
-                                        <span>{format(new Date(msg.created_at || new Date()), 'HH:mm')}</span>
-                                        {isMine && !msg.is_deleted && (
-                                            <span className="ml-1 flex items-center">
-                                                {msg.status === 'read' ? <CheckCheck size={14} className="text-white" /> :
-                                                    msg.status === 'delivered' ? <CheckCheck size={14} className="text-blue-200 opacity-60" /> :
-                                                        <Check size={14} className="text-blue-200 opacity-60" />}
-                                            </span>
-                                        )}
-                                    </div>
+                                    {msg.reactions && msg.reactions.length > 0 && (
+                                        <div className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} bg-[#2C2C2E] border border-[#38383A] rounded-full px-2 py-0.5 text-[12px] flex items-center gap-1 shadow-md z-10`}>
+                                            {Array.from(new Set(msg.reactions.map((r: any) => r.reaction))).map((reaction: any) => (
+                                                <span key={reaction}>{reaction}</span>
+                                            ))}
+                                            <span className="text-white/60 font-semibold ml-0.5">{msg.reactions.length > 1 ? msg.reactions.length : ''}</span>
+                                        </div>
+                                    )}
                                 </div>
-                                {msg.reactions && msg.reactions.length > 0 && (
-                                    <div className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} bg-[#2C2C2E] border border-[#38383A] rounded-full px-2 py-0.5 text-[12px] flex items-center gap-1 shadow-md z-10`}>
-                                        {Array.from(new Set(msg.reactions.map((r: any) => r.reaction))).map((reaction: any) => (
-                                            <span key={reaction}>{reaction}</span>
-                                        ))}
-                                        <span className="text-white/60 font-semibold ml-0.5">{msg.reactions.length > 1 ? msg.reactions.length : ''}</span>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     );
                 })}
                 <div ref={messagesEndRef} className="h-4" />
+
+                {/* Scroll to Bottom FAB */}
+                {showScrollFAB && (
+                    <div className="sticky bottom-4 w-full flex justify-end px-2 z-30 animate-[fadeIn_0.2s_ease-out]">
+                        <button
+                            onClick={scrollToBottom}
+                            className="bg-[#2C2C2E]/90 backdrop-blur-md border border-white/10 rounded-full p-2.5 shadow-2xl text-[var(--color-brand-primary)] hover:bg-[#38383A] transition-all"
+                        >
+                            <ChevronDown size={24} />
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Dynamic Floating Context Menu */}
@@ -992,7 +1060,7 @@ export default function ChatScreen() {
             )}
 
             {/* Input Area */}
-            <div className="backdrop-blur-2xl bg-[var(--color-brand-bg)]/80 px-2 sm:px-4 py-2 sm:py-3 pb-4 sm:pb-6 flex flex-col z-20 w-full border-t border-[var(--color-brand-border)] relative shadow-2xl">
+            <div className="backdrop-blur-2xl bg-[var(--color-brand-bg)]/80 px-2 sm:px-4 py-2 sm:py-3 pb-[env(safe-area-inset-bottom)] pb-4 sm:pb-6 flex flex-col z-20 w-full border-t border-[var(--color-brand-border)] relative shadow-2xl">
                 {replyingTo && (
                     <div className="flex items-center justify-between bg-black/40 rounded-t-2xl px-4 py-2 mb-2 border-l-4 border-[var(--color-brand-primary)] text-sm shadow-md">
                         <div>
