@@ -1008,13 +1008,28 @@ export default function ChatScreen() {
                             </div>
                             <form onSubmit={handleSendMessage} className="flex-1 flex ml-1">
                                 <div className="w-full bg-white/5 backdrop-blur-md rounded-3xl px-4 py-2 sm:px-5 sm:py-2.5 shadow-inner border border-white/10 flex items-center min-h-[40px] sm:min-h-[44px] transition-colors focus-within:bg-white/10 focus-within:border-white/20">
-                                    <input
-                                        type="text"
+                                    <textarea
+                                        rows={1}
                                         value={newMessage}
-                                        onChange={handleTyping}
+                                        onChange={(e) => {
+                                            handleTyping(e);
+                                            // Auto-resize logic
+                                            e.target.style.height = 'auto';
+                                            e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                                        }}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                if (newMessage.trim()) {
+                                                    handleSendMessage(e as any);
+                                                    // Reset height after sending
+                                                    e.currentTarget.style.height = 'auto';
+                                                }
+                                            }
+                                        }}
                                         onPaste={handlePaste}
                                         placeholder={editingMessage ? "Edit message..." : "Message (paste image here)..."}
-                                        className="flex-1 outline-none text-white bg-transparent placeholder-[#8E8E93] text-[14px] sm:text-[15px]"
+                                        className="flex-1 outline-none text-white bg-transparent placeholder-[#8E8E93] text-[14px] sm:text-[15px] resize-none overflow-y-auto min-h-[24px] max-h-[120px] py-1 hide-scrollbar"
                                     />
                                     {editingMessage && (
                                         <button
