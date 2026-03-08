@@ -17,38 +17,48 @@
 
   /* Default Theme Bubbles */
   --color-brand-bubble-me: #1e40af;
-  /* Add any global styles here for Sampark */
   --color-brand-bubble-other: #262626;
-  /* Dark gray for receiver */
 
   --color-text-primary: #ffffff;
   --color-text-secondary: #a1a1aa;
   --color-text-inverse: #000000;
 }
 
+/* Chat Background Pattern Image */
+.chat-bg-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
 /* Instagram Gradient Theme */
 .theme-instagram {
   --color-brand-bubble-me: #E1306C;
   --color-brand-primary: #E1306C;
+  --color-brand-bg: #110008;
+  /* Deep rich dark pink/red base */
 }
 
 /* Hacker Green Theme */
 .theme-hacker {
   --color-brand-bubble-me: #00ff00;
   --color-brand-primary: #00ff00;
-  /* Darker background for text inside the bubble to stay readable if it's black text */
+  --color-brand-bg: #001100;
+  /* Deep black-green terminal feel */
 }
 
 /* Rose / Sunset Theme */
 .theme-rose {
   --color-brand-bubble-me: #FF3B30;
   --color-brand-primary: #FF3B30;
+  --color-brand-bg: #1c0000;
+  /* Deep burgundy */
 }
 
 /* Ocean Blue */
 .theme-ocean {
   --color-brand-bubble-me: #32ADE6;
   --color-brand-primary: #32ADE6;
+  --color-brand-bg: #000f1a;
+  /* Very deep ocean blue */
 }
 
 body {

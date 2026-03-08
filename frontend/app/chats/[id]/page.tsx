@@ -733,7 +733,7 @@ export default function ChatScreen() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 z-10 flex flex-col gap-3 overflow-x-hidden">
+            <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8 z-10 flex flex-col gap-3 overflow-x-hidden chat-bg-pattern bg-[var(--color-brand-bg)] transition-colors duration-300">
                 {messages.map((msg, index) => {
                     const isMine = msg.sender_id === user?.id;
                     const isConsecutive = index > 0 && messages[index - 1].sender_id === msg.sender_id;
