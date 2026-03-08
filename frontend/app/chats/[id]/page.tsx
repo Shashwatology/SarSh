@@ -41,10 +41,12 @@ export default function ChatScreen() {
     const audioChunksRef = useRef<BlobPart[]>([]);
     const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Swipe-to-reply State
+    // Gestures
     const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
-    const [swipeDistanceX, setSwipeDistanceX] = useState<number>(0);
+    const [swipeStartY, setSwipeStartY] = useState<number | null>(null);
     const [swipingMessageId, setSwipingMessageId] = useState<number | null>(null);
+    const [swipeDistanceX, setSwipeDistanceX] = useState<number>(0);
+    const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -583,40 +585,72 @@ export default function ChatScreen() {
         socket?.emit('draw_grid', { chatId: String(id) });
     };
 
-    // --- SWIPE TO REPLY LOGIC ---
+    // --- GESTURE LOGIC: SWIPE & LONG PRESS ---
     const SWIPE_THRESHOLD = 50; // pixels to trigger reply
     const MAX_SWIPE = 80;
+    const LONG_PRESS_DELAY = 500; // ms
 
-    const handleTouchStart = (e: React.TouchEvent, msgId: number) => {
-        setSwipeStartX(e.touches[0].clientX);
-        setSwipingMessageId(msgId);
+    const handleTouchStart = (e: React.TouchEvent, msg: any) => {
+        const touch = e.touches[0];
+        setSwipeStartX(touch.clientX);
+        setSwipeStartY(touch.clientY);
+        setSwipingMessageId(msg.id);
         setSwipeDistanceX(0);
+
+        // Start long press timer
+        longPressTimerRef.current = setTimeout(() => {
+            // Trigger haptic feedback if supported
+            if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(50);
+            }
+            setActiveMenuId(msg.id);
+            setSwipingMessageId(null);
+            setSwipeDistanceX(0);
+        }, LONG_PRESS_DELAY);
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
-        if (swipeStartX === null || swipingMessageId === null) return;
+        if (swipeStartX === null || swipeStartY === null || swipingMessageId === null) return;
         const currentX = e.touches[0].clientX;
-        const diff = currentX - swipeStartX;
+        const currentY = e.touches[0].clientY;
+        const diffX = currentX - swipeStartX;
+        const diffY = currentY - swipeStartY;
 
-        // Only allow swiping right
-        if (diff > 0 && diff < MAX_SWIPE) {
-            setSwipeDistanceX(diff);
-        } else if (diff >= MAX_SWIPE) {
-            setSwipeDistanceX(MAX_SWIPE);
+        // If finger moves more than 10px in any direction, cancel long press
+        if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
+            if (longPressTimerRef.current) {
+                clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+            }
+        }
+
+        // Only allow swiping right for swipe-to-reply
+        if (Math.abs(diffX) > Math.abs(diffY) && diffX > 0) {
+            if (diffX < MAX_SWIPE) {
+                setSwipeDistanceX(diffX);
+            } else {
+                setSwipeDistanceX(MAX_SWIPE);
+            }
         } else {
-            setSwipeDistanceX(0);
+            setSwipeDistanceX(0); // Scrolling vertically or swiping left
         }
     };
 
     const handleTouchEnd = (msg: any) => {
+        // Clear long press if touch ends early
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+
         if (swipeDistanceX >= SWIPE_THRESHOLD) {
             setReplyingTo(msg);
-            // Optionally trigger a light haptic feedback if supported check
             if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
                 window.navigator.vibrate(50);
             }
         }
         setSwipeStartX(null);
+        setSwipeStartY(null);
         setSwipingMessageId(null);
         setSwipeDistanceX(0);
     };
@@ -709,7 +743,7 @@ export default function ChatScreen() {
                         <div
                             key={msg.id || index}
                             className={`flex relative ${isMine ? 'justify-end' : 'justify-start'} ${isConsecutive ? '-mt-1' : ''}`}
-                            onTouchStart={(e) => handleTouchStart(e, msg.id)}
+                            onTouchStart={(e) => handleTouchStart(e, msg)}
                             onTouchMove={handleTouchMove}
                             onTouchEnd={() => handleTouchEnd(msg)}
                         >
