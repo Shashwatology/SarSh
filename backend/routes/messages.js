@@ -4,7 +4,7 @@ const pool = require('../config/db');
 const auth = require('../middleware/auth');
 const { sendNotificationToUser } = require('./notifications');
 
-// Get all messages for a specific chat
+// Get all messages for a specific chat (Optimized with Limit)
 router.get('/:chatId', auth, async (req, res) => {
     try {
         const messages = await pool.query(
@@ -24,7 +24,8 @@ router.get('/:chatId', auth, async (req, res) => {
              LEFT JOIN Users u ON m.sender_id = u.id 
              LEFT JOIN Messages rm ON m.reply_to_id = rm.id
              LEFT JOIN Users ru ON rm.sender_id = ru.id
-             WHERE m.chat_id = $1 ORDER BY m.created_at ASC`,
+             WHERE m.chat_id = $1 
+             ORDER BY m.created_at DESC LIMIT 50`,
             [req.params.chatId]
         );
         res.json(messages.rows);
@@ -211,6 +212,28 @@ router.delete('/:id', auth, async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error deleting message');
+    }
+});
+
+// Clear an entire chat (Hard delete all messages for redundancy)
+router.delete('/chat/:chatId', auth, async (req, res) => {
+    try {
+        const chatId = req.params.chatId;
+        const userId = req.user.id; // Could verify if user is part of chat Participants here
+
+        // Ensure user is in ChatParticipants before allowing deletion
+        const checkAuth = await pool.query('SELECT 1 FROM ChatParticipants WHERE chat_id = $1 AND user_id = $2', [chatId, userId]);
+        if (checkAuth.rowCount === 0) {
+            return res.status(403).json({ msg: 'Unauthorized to clear this chat' });
+        }
+
+        // Delete all messages associated with this chat
+        await pool.query('DELETE FROM Messages WHERE chat_id = $1', [chatId]);
+
+        res.json({ msg: 'Chat cleared successfully', chat_id: chatId });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error clearing chat');
     }
 });
 

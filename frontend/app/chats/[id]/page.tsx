@@ -60,15 +60,33 @@ export default function ChatScreen() {
                 const chatsRes = await api.get('/chats');
                 setAllChats(chatsRes.data);
                 const chat = chatsRes.data.find((c: any) => c.chat_id === Number(id));
-                if (chat) setCurrentChat(chat);
-
-                const msgRes = await api.get(`/messages/${id}`);
-                setMessages(msgRes.data);
-
-                await api.put(`/messages/read/${id}`);
-                if (socket) {
-                    socket.emit('read_receipt', { chatId: String(id), readerId: user.id });
+                if (chat) {
+                    setCurrentChat(chat);
+                    chatInfoRef.current = chat; // Update ref
                 }
+
+                const fetchMessages = async () => {
+                    try {
+                        const res = await api.get(`/messages/${id}`);
+                        // Because the backend now sends the latest 50 messages ordered by DESC, 
+                        // we must reverse the array to render chronologically (oldest at top).
+                        setMessages(res.data.reverse());
+                        scrollToBottom();
+
+                        // Mark as read after delay
+                        setTimeout(() => {
+                            if (chatInfoRef.current && chatInfoRef.current.unread_count > 0) {
+                                api.put(`/messages/read/${id}`).then(() => {
+                                    socket?.emit('read_receipt', { chatId: id, userId: user?.id });
+                                }).catch(err => console.error("Error marking read:", err));
+                            }
+                        }, 1000);
+                    } catch (error) {
+                        console.error('Error fetching messages:', error);
+                    }
+                };
+                fetchMessages();
+
             } catch (err) {
                 console.error(err);
             }
@@ -190,6 +208,10 @@ export default function ChatScreen() {
             drawTicTacToeGridLocally();
         });
 
+        socket.on('chat_cleared', () => {
+            setMessages([]);
+        });
+
         return () => {
             socket.off('receive_message');
             socket.off('typing');
@@ -204,8 +226,13 @@ export default function ChatScreen() {
             socket.off('clear_canvas');
             socket.off('end_drawing');
             socket.off('draw_grid');
+            socket.off('chat_cleared');
         };
     }, [socket, id, user]);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -435,7 +462,20 @@ export default function ChatScreen() {
         }
     };
 
-    // --- CANVAS LOGIC ---
+    // --- OPTIMIZATION: CLEAR CHAT LOGIC ---
+    const handleClearChat = async () => {
+        if (!confirm('Are you sure you want to clear all messages in this chat? This cannot be undone.')) return;
+        try {
+            await api.delete(`/messages/chat/${id}`);
+            setMessages([]);
+            socket?.emit('clear_chat', { chatId: String(id) });
+            setShowHeaderDropdown(false);
+        } catch (e) {
+            console.error('Failed to clear chat', e);
+        }
+    };
+
+    // --- COLLABORATIVE CANVAS LOGIC ---
     const initCanvas = () => {
         socket?.emit('start_drawing', { chatId: String(id), senderId: user?.id, senderName: user?.username });
         setShowCanvas(true);
@@ -710,22 +750,32 @@ export default function ChatScreen() {
                         onClick={() => setShowThemePicker(!showThemePicker)}
                         className="p-2 rounded-full hover:bg-white/10 text-[var(--color-brand-primary)] transition-colors"
                     >
-                        <Palette size={22} />
+                        <MoreVertical size={22} />
                     </button>
                     {showThemePicker && (
-                        <div className="absolute right-0 top-12 mt-2 w-48 bg-[#2C2C2E] border border-[#38383A] rounded-2xl shadow-2xl p-2 z-50">
-                            <h3 className="text-white text-xs font-semibold px-3 pt-2 pb-3 uppercase tracking-wider text-[var(--color-text-secondary)]">Chat Theme</h3>
-                            <div className="space-y-1">
-                                {['default', 'instagram', 'hacker', 'rose', 'ocean'].map(theme => (
-                                    <button
-                                        key={theme}
-                                        onClick={() => handleThemeChange(theme)}
-                                        className={`w-full text-left px-3 py-2 rounded-xl text-sm capitalize flex items-center justify-between ${currentChat?.theme === theme ? 'bg-white/10 text-white font-medium' : 'text-gray-300 hover:bg-white/5'}`}
-                                    >
-                                        {theme === 'default' ? 'Classic Blue' : theme}
-                                        {currentChat?.theme === theme && <Check size={16} className="text-[var(--color-brand-primary)]" />}
-                                    </button>
-                                ))}
+                        <div className="absolute right-0 top-12 mt-2 w-52 bg-[#2C2C2E] border border-[#38383A] rounded-2xl shadow-2xl p-2 z-50 overflow-hidden divide-y divide-white/5">
+                            <div className="pb-2">
+                                <h3 className="text-white text-xs font-semibold px-3 py-2 uppercase tracking-wider text-[var(--color-text-secondary)]">Chat Theme</h3>
+                                <div className="space-y-1">
+                                    {['default', 'instagram', 'hacker', 'rose', 'ocean'].map(theme => (
+                                        <button
+                                            key={theme}
+                                            onClick={() => handleThemeChange(theme)}
+                                            className={`w-full text-left px-3 py-2 rounded-xl text-sm capitalize flex items-center justify-between ${currentChat?.theme === theme ? 'bg-white/10 text-white font-medium' : 'text-gray-300 hover:bg-white/5'}`}
+                                        >
+                                            {theme === 'default' ? 'Classic Blue' : theme}
+                                            {currentChat?.theme === theme && <Check size={16} className="text-[var(--color-brand-primary)]" />}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="pt-2">
+                                <button
+                                    onClick={handleClearChat}
+                                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm flex items-center text-red-500 hover:bg-red-500/10 transition-colors font-medium border border-transparent hover:border-red-500/20"
+                                >
+                                    <Trash2 size={16} className="mr-2" /> Clear Chat History
+                                </button>
                             </div>
                         </div>
                     )}

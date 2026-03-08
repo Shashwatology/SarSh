@@ -110,6 +110,10 @@ io.on('connection', (socket) => {
         io.to(String(data.chat_id)).emit('update_message', data);
     });
 
+    socket.on('clear_chat', (data) => {
+        io.to(String(data.chatId)).emit('chat_cleared', data);
+    });
+
     socket.on('change_theme', (data) => {
         io.to(String(data.chatId)).emit('update_theme', { theme: data.theme });
     });
