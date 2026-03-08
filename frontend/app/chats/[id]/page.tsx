@@ -364,6 +364,9 @@ export default function ChatScreen() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Clear the input value so Android browsers don't cache it
+        e.target.value = '';
+
         const formData = new FormData();
         formData.append('document', file);
 
@@ -396,7 +399,10 @@ export default function ChatScreen() {
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (file) await uploadFileDirectly(file);
+        if (file) {
+            e.target.value = '';
+            await uploadFileDirectly(file);
+        }
     };
 
     const handlePaste = async (e: React.ClipboardEvent<HTMLInputElement>) => {
