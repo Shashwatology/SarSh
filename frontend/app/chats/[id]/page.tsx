@@ -618,23 +618,28 @@ export default function ChatScreen() {
         const diffX = currentX - swipeStartX;
         const diffY = currentY - swipeStartY;
 
-        // If finger moves more than 10px in any direction, cancel long press
-        if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
+        // If finger moves more than 10px vertically, cancel swipe and long press completely
+        if (Math.abs(diffY) > 10) {
             if (longPressTimerRef.current) {
                 clearTimeout(longPressTimerRef.current);
                 longPressTimerRef.current = null;
             }
+            setSwipingMessageId(null);
+            setSwipeDistanceX(0);
+            return;
         }
 
         // Only allow swiping right for swipe-to-reply
-        if (Math.abs(diffX) > Math.abs(diffY) && diffX > 0) {
+        if (diffX > 5) {
+            if (longPressTimerRef.current) {
+                clearTimeout(longPressTimerRef.current);
+                longPressTimerRef.current = null;
+            }
             if (diffX < MAX_SWIPE) {
                 setSwipeDistanceX(diffX);
             } else {
                 setSwipeDistanceX(MAX_SWIPE);
             }
-        } else {
-            setSwipeDistanceX(0); // Scrolling vertically or swiping left
         }
     };
 
@@ -1056,12 +1061,12 @@ export default function ChatScreen() {
                                         </button>
                                         <button onClick={() => { setShowAttachments(false); documentInputRef.current?.click(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
                                             <div className="bg-blue-500/20 p-1.5 rounded-lg text-blue-400"><Paperclip size={18} /></div> Document
-                                            <input type="file" ref={documentInputRef} className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload} />
                                         </button>
                                         <button onClick={() => { setShowAttachments(false); fileInputRef.current?.click(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
                                             <div className="bg-green-500/20 p-1.5 rounded-lg text-green-400"><ImageIcon size={18} /></div> Image
-                                            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                                         </button>
+                                        <input type="file" ref={documentInputRef} className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload} />
+                                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                                     </div>
                                 )}
                             </div>
