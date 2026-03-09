@@ -698,33 +698,57 @@ export default function ChatScreen() {
     return (
         <div className={`flex flex-col h-[100dvh] w-full bg-black relative md:rounded-l-sm shadow-inner overflow-hidden theme-${currentChat?.theme || 'default'}`}>
             {/* Header */}
-            <div className="backdrop-blur-xl bg-[var(--color-brand-surface)]/80 px-4 py-3 flex items-center border-b border-[var(--color-brand-border)] z-20 w-full shadow-sm sticky top-0">
-                <button onClick={() => router.push('/chats')} className="mr-3 md:hidden text-[var(--color-brand-primary)] hover:opacity-80 p-1 rounded-full transition-opacity">
+            <div className={`backdrop-blur-xl px-4 py-3 flex items-center z-20 w-full shadow-sm sticky top-0 ${currentChat?.theme === 'incognito' ? 'bg-[#2d2d2d] border-b-2 border-[#1e1e1e] font-mono' : 'bg-[var(--color-brand-surface)]/80 border-b border-[var(--color-brand-border)]'}`}>
+                <button onClick={() => router.push('/chats')} className={`mr-3 md:hidden p-1 rounded-full transition-opacity ${currentChat?.theme === 'incognito' ? 'text-[#858585] hover:text-[#d4d4d4]' : 'text-[var(--color-brand-primary)] hover:opacity-80'}`}>
                     <ArrowLeft size={24} />
                 </button>
                 <div className="flex items-center cursor-pointer group">
-                    <div className="w-10 h-10 bg-[#38383A] rounded-full flex-shrink-0 shadow-sm overflow-hidden flex items-center justify-center">
+                    <div className={currentChat?.theme === 'incognito' ? "hidden" : "w-10 h-10 bg-[#38383A] rounded-full flex-shrink-0 shadow-sm overflow-hidden flex items-center justify-center"}>
                         {currentChat?.is_group ? (
                             currentChat?.group_icon ? <img src={currentChat.group_icon} alt="" className="w-full h-full object-cover" /> : <Users size={20} className="text-white" />
                         ) : (
                             currentChat?.profile_picture ? <img src={currentChat.profile_picture} alt="" className="w-full h-full object-cover" /> : <UserIcon size={20} className="text-white" />
                         )}
                     </div>
-                    <div className="ml-3">
-                        <h2 className="text-white font-semibold tracking-tight leading-5 group-hover:text-gray-200 transition-colors">
-                            {currentChat?.is_group ? (currentChat?.group_name || 'Group Chat') : (currentChat?.username || 'Loading...')}
-                        </h2>
-                        <p className="text-[13px] text-[var(--color-brand-primary)]">
-                            {currentChat?.is_group ? (
-                                <span className="text-[var(--color-text-secondary)]">Group</span>
-                            ) : (
-                                otherUserTyping ? 'typing...' : (
-                                    currentChat?.is_online ? 'Online' :
-                                        currentChat?.last_seen ? <span className="text-[var(--color-text-secondary)]">{`last seen ${format(new Date(currentChat.last_seen), 'HH:mm')}`}</span> :
-                                            <span className="text-[var(--color-text-secondary)]">{currentChat?.status || 'Offline'}</span>
-                                )
+                    <div className={currentChat?.theme === 'incognito' ? "ml-1" : "ml-3"}>
+                        <h2 className={`font-semibold tracking-tight transition-colors ${currentChat?.theme === 'incognito' ? 'text-[#d4d4d4] text-[15px] font-normal' : 'text-white leading-5 group-hover:text-gray-200'}`}>
+                            {currentChat?.theme === 'incognito' && (
+                                <span className="text-[#569cd6] mr-1">export const</span>
                             )}
-                        </p>
+                            {currentChat?.theme === 'incognito' ? (currentChat?.is_group ? (currentChat?.group_name?.replace(/\s+/g, '_') || 'Group_Chat') : (currentChat?.username?.replace(/\s+/g, '_') || 'Loading...')) : (currentChat?.is_group ? (currentChat?.group_name || 'Group Chat') : (currentChat?.username || 'Loading...'))}
+                            {currentChat?.theme === 'incognito' && (
+                                <span className="text-[#d4d4d4]"> = </span>
+                            )}
+                        </h2>
+
+                        {currentChat?.theme !== 'incognito' && (
+                            <p className="text-[13px] text-[var(--color-brand-primary)]">
+                                {currentChat?.is_group ? (
+                                    <span className="text-[var(--color-text-secondary)]">Group</span>
+                                ) : (
+                                    otherUserTyping ? 'typing...' : (
+                                        currentChat?.is_online ? 'Online' :
+                                            currentChat?.last_seen ? <span className="text-[var(--color-text-secondary)]">{`last seen ${format(new Date(currentChat.last_seen), 'HH:mm')}`}</span> :
+                                                <span className="text-[var(--color-text-secondary)]">{currentChat?.status || 'Offline'}</span>
+                                    )
+                                )}
+                            </p>
+                        )}
+
+                        {currentChat?.theme === 'incognito' && (
+                            <span className={`text-[13px] ${currentChat?.is_online ? 'text-[#ce9178]' : 'text-[#608b4e]'}`}>
+                                {currentChat?.is_group ? (
+                                    "'Group'"
+                                ) : (
+                                    otherUserTyping ? "'typing...'" : (
+                                        currentChat?.is_online ? "'Online'" :
+                                            currentChat?.last_seen ? `'last seen ${format(new Date(currentChat.last_seen), 'HH:mm')}'` :
+                                                `'${currentChat?.status || 'Offline'}'`
+                                    )
+                                )}
+                                <span className="text-[#d4d4d4]">;</span>
+                            </span>
+                        )}
                     </div>
                 </div>
 
@@ -756,13 +780,13 @@ export default function ChatScreen() {
                         <div className="absolute right-0 top-12 mt-2 w-48 bg-[#2C2C2E] border border-[#38383A] rounded-2xl shadow-2xl p-2 z-50">
                             <h3 className="text-white text-xs font-semibold px-3 pt-2 pb-3 uppercase tracking-wider text-[var(--color-text-secondary)]">Chat Theme</h3>
                             <div className="space-y-1">
-                                {['default', 'instagram', 'hacker', 'rose', 'ocean'].map(theme => (
+                                {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito'].map(theme => (
                                     <button
                                         key={theme}
                                         onClick={() => handleThemeChange(theme)}
                                         className={`w-full text-left px-3 py-2 rounded-xl text-sm capitalize flex items-center justify-between ${currentChat?.theme === theme ? 'bg-white/10 text-white font-medium' : 'text-gray-300 hover:bg-white/5'}`}
                                     >
-                                        {theme === 'default' ? 'Classic Blue' : theme}
+                                        {theme === 'default' ? 'Classic Blue' : theme === 'incognito' ? 'Incognito Mode' : theme}
                                         {currentChat?.theme === theme && <Check size={16} className="text-[var(--color-brand-primary)]" />}
                                     </button>
                                 ))}
@@ -779,18 +803,29 @@ export default function ChatScreen() {
                 </div>
             </div>
 
-            {/* Messages Area */}
+            {/* Messages Area - Incognito overriding background pattern and layout */}
             <div
-                className="flex-1 overflow-y-auto px-4 py-6 md:px-8 z-10 flex flex-col gap-3 overflow-x-hidden chat-bg-pattern bg-[var(--color-brand-bg)] transition-colors duration-300 relative"
+                className={`flex-1 overflow-y-auto px-4 md:px-8 z-10 flex flex-col gap-3 overflow-x-hidden transition-colors duration-300 relative ${currentChat?.theme === 'incognito' ? 'bg-[#1e1e1e] font-mono py-8' : 'chat-bg-pattern bg-[var(--color-brand-bg)] py-6'}`}
                 onScroll={handleScroll}
             >
 
                 {/* Blur Overlay when a message menu is open */}
-                {activeMenuId && (
+                {activeMenuId && currentChat?.theme !== 'incognito' && (
                     <div
                         className="fixed inset-0 bg-black/60 backdrop-blur-[4px] z-[40] transition-all duration-200"
                         onClick={() => { setActiveMenuId(null); setMenuRect(null); }}
                     />
+                )}
+
+                {/* Incognito Top Decoration */}
+                {currentChat?.theme === 'incognito' && messages.length > 0 && (
+                    <div className="text-[#6a9955] text-sm mb-4 selection:bg-[#264f78]">
+                        /** <br />
+                        * @author {currentChat?.is_group ? currentChat?.group_name : currentChat?.username} <br />
+                        * @description Secure communication channel established. <br />
+                        * @timestamp {new Date().toISOString()} <br />
+                        */
+                    </div>
                 )}
 
                 {messages.map((msg, index) => {
@@ -822,11 +857,12 @@ export default function ChatScreen() {
 
                     const isSwiping = swipingMessageId === msg.id;
                     const isActiveMenu = activeMenuId === msg.id;
+                    const isIncognito = currentChat?.theme === 'incognito';
 
                     return (
-                        <div key={msg.id || index} className="flex flex-col mb-0.5">
+                        <div key={msg.id || index} className={`flex flex-col ${isIncognito ? 'mb-0' : 'mb-0.5'}`}>
                             {/* Date Separator Pill */}
-                            {showDateSeparator && (
+                            {showDateSeparator && !isIncognito && (
                                 <div className="flex justify-center my-4 opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]">
                                     <div className="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-medium text-white/80 border border-white/5 uppercase tracking-wide">
                                         {format(msgDate, 'dd MMM, yyyy')}
@@ -834,16 +870,22 @@ export default function ChatScreen() {
                                 </div>
                             )}
 
+                            {showDateSeparator && isIncognito && (
+                                <div className="text-[#569cd6] text-[13px] my-3 pl-2 border-l-2 border-[#569cd6]">
+                                     // Date block: {format(msgDate, 'yyyy-MM-dd')}
+                                </div>
+                            )}
+
                             <div
-                                className={`flex relative message-bubble-container ${isMine ? 'justify-end' : 'justify-start'} ${isConsecutive && !showDateSeparator ? '-mt-1' : ''}`}
-                                onTouchStart={(e) => handleTouchStart(e, msg)}
-                                onTouchMove={handleTouchMove}
-                                onTouchEnd={() => handleTouchEnd(msg)}
-                                onContextMenu={(e) => e.preventDefault()}
-                                style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
+                                className={`flex relative message-bubble-container ${isMine ? (isIncognito ? 'justify-start' : 'justify-end') : 'justify-start'} ${isConsecutive && !showDateSeparator && !isIncognito ? '-mt-1' : ''}`}
+                                onTouchStart={isIncognito ? undefined : (e) => handleTouchStart(e, msg)}
+                                onTouchMove={isIncognito ? undefined : handleTouchMove}
+                                onTouchEnd={isIncognito ? undefined : () => handleTouchEnd(msg)}
+                                onContextMenu={isIncognito ? undefined : (e) => e.preventDefault()}
+                                style={isIncognito ? {} : { WebkitTouchCallout: 'none', userSelect: 'none' }}
                             >
                                 {/* Reply Icon Indicator (revealed on swipe) */}
-                                {!isMine && (
+                                {!isMine && !isIncognito && (
                                     <div
                                         className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center justify-center transition-opacity"
                                         style={{
@@ -889,7 +931,7 @@ export default function ChatScreen() {
                                         </div>
                                     )}
 
-                                    {!msg.is_deleted && (
+                                    {!msg.is_deleted && !isIncognito && (
                                         <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
                                                 onClick={(e) => {
@@ -911,15 +953,15 @@ export default function ChatScreen() {
                                         </div>
                                     )}
 
-                                    {(msg.media_type === 'image' || (!msg.media_type && msg.media_url)) && msg.media_url && (
+                                    {(msg.media_type === 'image' || (!msg.media_type && msg.media_url)) && msg.media_url && !isIncognito && (
                                         <img src={msg.media_url} alt="Media" className="rounded-xl mb-1 mt-1 max-w-full h-auto max-h-[300px] object-cover border border-white/10" />
                                     )}
-                                    {msg.media_type === 'audio' && msg.media_url && (
+                                    {msg.media_type === 'audio' && msg.media_url && !isIncognito && (
                                         <div className="mt-1 mb-2">
                                             <audio controls src={msg.media_url} className="h-10 outline-none max-w-[200px] md:max-w-[250px]" />
                                         </div>
                                     )}
-                                    {msg.media_type === 'document' && msg.media_url && (
+                                    {msg.media_type === 'document' && msg.media_url && !isIncognito && (
                                         <div className="mt-1 mb-2 flex items-center bg-black/20 p-3 rounded-xl border border-white/10">
                                             <FileText size={24} className="mr-3 opacity-80" />
                                             <a href={msg.media_url} target="_blank" rel="noopener noreferrer" className="hover:underline flex-1 truncate font-medium max-w-[180px]">
@@ -927,27 +969,50 @@ export default function ChatScreen() {
                                             </a>
                                         </div>
                                     )}
-                                    <div className="flex flex-wrap items-end gap-3">
-                                        {msg.content && msg.media_type !== 'document' && <span className={`break-words whitespace-pre-wrap flex-1 ${msg.is_deleted ? 'text-white/70 text-[15px]' : ''}`}>{msg.content}</span>}
-                                        <div className={`flex items-center text-[11px] whitespace-nowrap pt-1 ml-auto ${isMine ? 'text-blue-100' : 'text-[var(--color-text-secondary)]'}`}>
-                                            {msg.is_edited && !msg.is_deleted && <span className="mr-1.5 opacity-70 italic">edited</span>}
-                                            <span>{format(new Date(msg.created_at || new Date()), 'HH:mm')}</span>
-                                            {isMine && !msg.is_deleted && (
-                                                <span className="ml-1 flex items-center">
-                                                    {msg.status === 'read' ? <CheckCheck size={14} className="text-white" /> :
-                                                        msg.status === 'delivered' ? <CheckCheck size={14} className="text-blue-200 opacity-60" /> :
-                                                            <Check size={14} className="text-blue-200 opacity-60" />}
-                                                </span>
-                                            )}
-                                        </div>
+
+                                    {msg.media_url && isIncognito && (
+                                        <span className="text-[#d16969] italic ml-1">{"[import _" + msg.media_type + "]"}</span>
+                                    )}
+
+                                    <div className={`flex flex-wrap items-end gap-3 ${isIncognito ? 'inline' : ''}`}>
+                                        {msg.content && msg.media_type !== 'document' && <span className={`break-words whitespace-pre-wrap ${isIncognito ? 'inline text-[13px] tracking-tight' : 'flex-1'} ${msg.is_deleted && !isIncognito ? 'text-white/70 text-[15px]' : ''}`}>{isIncognito ? `${!isMine && currentChat?.is_group ? `[${msg.sender_name}] ` : ''}${msg.content}` : msg.content}</span>}
+
+                                        {!isIncognito && (
+                                            <div className={`flex items-center text-[11px] whitespace-nowrap pt-1 ml-auto ${isMine ? 'text-blue-100' : 'text-[var(--color-text-secondary)]'}`}>
+                                                {msg.is_edited && !msg.is_deleted && <span className="mr-1.5 opacity-70 italic">edited</span>}
+                                                <span>{format(new Date(msg.created_at || new Date()), 'HH:mm')}</span>
+                                                {isMine && !msg.is_deleted && (
+                                                    <span className="ml-1 flex items-center">
+                                                        {msg.status === 'read' ? <CheckCheck size={14} className="text-white" /> :
+                                                            msg.status === 'delivered' ? <CheckCheck size={14} className="text-blue-200 opacity-60" /> :
+                                                                <Check size={14} className="text-blue-200 opacity-60" />}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                    {msg.reactions && msg.reactions.length > 0 && (
+
+                                    {/* Incognito Time & Meta */}
+                                    {isIncognito && (
+                                        <span className="text-[#608b4e] text-[11px] ml-4 opacity-70 select-none">
+                                            {"// " + format(new Date(msg.created_at || new Date()), 'HH:mm')}
+                                            {isMine && msg.status === 'read' ? ' [✓✓]' : isMine ? ' [✓]' : ''}
+                                        </span>
+                                    )}
+
+                                    {msg.reactions && msg.reactions.length > 0 && !isIncognito && (
                                         <div className={`absolute -bottom-3 ${isMine ? 'right-4' : 'left-4'} bg-[#2C2C2E] border border-[#38383A] rounded-full px-2 py-0.5 text-[12px] flex items-center gap-1 shadow-md z-10`}>
                                             {Array.from(new Set(msg.reactions.map((r: any) => r.reaction))).map((reaction: any) => (
                                                 <span key={reaction}>{reaction}</span>
                                             ))}
                                             <span className="text-white/60 font-semibold ml-0.5">{msg.reactions.length > 1 ? msg.reactions.length : ''}</span>
                                         </div>
+                                    )}
+
+                                    {msg.reactions && msg.reactions.length > 0 && isIncognito && (
+                                        <span className="text-[#e5c07b] text-[11px] ml-2 block mt-1">
+                                            {"/* Reactions: " + Array.from(new Set(msg.reactions.map((r: any) => r.reaction))).join('') + " */"}
+                                        </span>
                                     )}
                                 </div>
                             </div>
@@ -1081,7 +1146,7 @@ export default function ChatScreen() {
             )}
 
             {/* Input Area */}
-            <div className="backdrop-blur-2xl bg-[var(--color-brand-bg)]/80 px-2 sm:px-4 py-2 sm:py-3 pb-[env(safe-area-inset-bottom)] pb-4 sm:pb-6 flex flex-col z-20 w-full border-t border-[var(--color-brand-border)] relative shadow-2xl">
+            <div className={`backdrop-blur-2xl px-2 sm:px-4 py-2 sm:py-3 pb-[env(safe-area-inset-bottom)] pb-4 sm:pb-6 flex flex-col z-20 w-full relative shadow-2xl ${currentChat?.theme === 'incognito' ? 'bg-[#1e1e1e] border-t-2 border-[#2d2d2d] font-mono' : 'bg-[var(--color-brand-bg)]/80 border-t border-[var(--color-brand-border)]'}`}>
                 {replyingTo && (
                     <div className="flex items-center justify-between bg-black/40 rounded-t-2xl px-4 py-2 mb-2 border-l-4 border-[var(--color-brand-primary)] text-sm shadow-md">
                         <div>
@@ -1092,7 +1157,7 @@ export default function ChatScreen() {
                     </div>
                 )}
 
-                {canvasInvite && (
+                {canvasInvite && !isIncognito && (
                     <div className="bg-[var(--color-brand-primary)]/20 border border-[var(--color-brand-primary)]/50 rounded-2xl mx-2 mb-3 p-3 flex items-center justify-between backdrop-blur-md shadow-lg animate-pulse">
                         <div className="flex items-center text-white">
                             <PenTool size={20} className="mr-3 flex-shrink-0 text-[var(--color-brand-primary)]" />
@@ -1135,37 +1200,42 @@ export default function ChatScreen() {
                         </div>
                     ) : (
                         <>
-                            <div className="relative">
-                                <button
-                                    onClick={() => setShowAttachments(!showAttachments)}
-                                    className={`p-1.5 sm:p-2 rounded-full transition-colors mb-0.5 ${showAttachments ? 'bg-white/20 text-white' : 'text-[var(--color-brand-primary)] hover:opacity-80'}`}
-                                >
-                                    <Plus size={24} className={`sm:w-6 sm:h-6 transition-transform ${showAttachments ? 'rotate-45' : ''}`} />
-                                </button>
+                            {!currentChat?.theme?.includes('incognito') && (
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowAttachments(!showAttachments)}
+                                        className={`p-1.5 sm:p-2 rounded-full transition-colors mb-0.5 ${showAttachments ? 'bg-white/20 text-white' : 'text-[var(--color-brand-primary)] hover:opacity-80'}`}
+                                    >
+                                        <Plus size={24} className={`sm:w-6 sm:h-6 transition-transform ${showAttachments ? 'rotate-45' : ''}`} />
+                                    </button>
 
-                                {showAttachments && (
-                                    <div className="absolute bottom-12 left-0 bg-[#2C2C2E] border border-[#38383A] rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-1 min-w-[140px] animate-[fadeIn_0.15s_ease-out]">
-                                        <button onClick={() => { setShowAttachments(false); initCanvas(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
-                                            <div className="bg-purple-500/20 p-1.5 rounded-lg text-purple-400"><PenTool size={18} /></div> Canvas
-                                        </button>
-                                        <button onClick={() => { setShowAttachments(false); documentInputRef.current?.click(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
-                                            <div className="bg-blue-500/20 p-1.5 rounded-lg text-blue-400"><Paperclip size={18} /></div> Document
-                                        </button>
-                                        <button onClick={() => { setShowAttachments(false); fileInputRef.current?.click(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
-                                            <div className="bg-green-500/20 p-1.5 rounded-lg text-green-400"><ImageIcon size={18} /></div> Image
-                                        </button>
-                                        <input type="file" ref={documentInputRef} className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload} />
-                                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
-                                    </div>
-                                )}
-                            </div>
-                            <form onSubmit={handleSendMessage} className="flex-1 flex ml-1">
-                                <div className="w-full bg-white/5 backdrop-blur-md rounded-3xl px-4 py-2 sm:px-5 sm:py-2.5 shadow-inner border border-white/10 flex items-center min-h-[40px] sm:min-h-[44px] transition-colors focus-within:bg-white/10 focus-within:border-white/20">
+                                    {showAttachments && (
+                                        <div className="absolute bottom-12 left-0 bg-[#2C2C2E] border border-[#38383A] rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-1 min-w-[140px] animate-[fadeIn_0.15s_ease-out]">
+                                            <button onClick={() => { setShowAttachments(false); initCanvas(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
+                                                <div className="bg-purple-500/20 p-1.5 rounded-lg text-purple-400"><PenTool size={18} /></div> Canvas
+                                            </button>
+                                            <button onClick={() => { setShowAttachments(false); documentInputRef.current?.click(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
+                                                <div className="bg-blue-500/20 p-1.5 rounded-lg text-blue-400"><Paperclip size={18} /></div> Document
+                                            </button>
+                                            <button onClick={() => { setShowAttachments(false); fileInputRef.current?.click(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
+                                                <div className="bg-green-500/20 p-1.5 rounded-lg text-green-400"><ImageIcon size={18} /></div> Image
+                                            </button>
+                                            <input type="file" ref={documentInputRef} className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload} />
+                                            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            <form onSubmit={handleSendMessage} className={`flex-1 flex ml-1 ${currentChat?.theme === 'incognito' ? 'items-center' : ''}`}>
+                                <div className={currentChat?.theme === 'incognito' ? "w-full flex items-center min-h-[40px] transition-colors" : "w-full bg-white/5 backdrop-blur-md rounded-3xl px-4 py-2 sm:px-5 sm:py-2.5 shadow-inner border border-white/10 flex items-center min-h-[40px] sm:min-h-[44px] transition-colors focus-within:bg-white/10 focus-within:border-white/20"}>
+                                    {currentChat?.theme === 'incognito' && (
+                                        <span className="text-[#569cd6] font-bold mr-2 ml-2 select-none">{">"}</span>
+                                    )}
                                     <textarea
                                         rows={1}
                                         value={newMessage}
                                         onChange={(e) => {
-                                            handleTyping(e);
+                                            handleTyping(e as any);
                                             // Auto-resize logic
                                             e.target.style.height = 'auto';
                                             e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
@@ -1181,8 +1251,8 @@ export default function ChatScreen() {
                                             }
                                         }}
                                         onPaste={handlePaste}
-                                        placeholder={editingMessage ? "Edit message..." : "Message (paste image here)..."}
-                                        className="flex-1 outline-none text-white bg-transparent placeholder-[#8E8E93] text-[14px] sm:text-[15px] resize-none overflow-y-auto min-h-[24px] max-h-[120px] py-1 hide-scrollbar"
+                                        placeholder={currentChat?.theme === 'incognito' ? (editingMessage ? "edit_cmd_" : "terminal_input_") : (editingMessage ? "Edit message..." : "Message (paste image here)...")}
+                                        className={currentChat?.theme === 'incognito' ? "flex-1 focus:outline-none resize-none overflow-y-auto leading-relaxed bg-transparent text-[#d4d4d4] font-mono py-2 min-h-[40px] max-h-[120px] placeholder:text-[#d4d4d4]/30 hide-scrollbar" : "flex-1 outline-none text-white bg-transparent placeholder-[#8E8E93] text-[14px] sm:text-[15px] resize-none overflow-y-auto min-h-[24px] max-h-[120px] py-1 hide-scrollbar"}
                                     />
                                     {editingMessage && (
                                         <button
@@ -1198,7 +1268,15 @@ export default function ChatScreen() {
                         </>
                     )}
 
-                    {newMessage.trim() && !isRecording ? (
+                    {currentChat?.theme === 'incognito' && !isRecording ? (
+                        <button
+                            onClick={handleSendMessage}
+                            disabled={!newMessage.trim() && !editingMessage}
+                            className="ml-2 bg-[#333333] hover:bg-[#4d4d4d] text-[#cccccc] px-4 py-1.5 rounded-sm font-mono text-xs transition-colors shrink-0 disabled:opacity-30 disabled:hover:bg-[#333333] self-end mb-1"
+                        >
+                            Run
+                        </button>
+                    ) : newMessage.trim() && !isRecording ? (
                         <button
                             onClick={handleSendMessage}
                             className="p-2.5 rounded-full bg-[var(--color-brand-primary)] text-white hover:opacity-90 flex items-center justify-center transition-all shadow-md mb-0.5 transform scale-100 ml-1"

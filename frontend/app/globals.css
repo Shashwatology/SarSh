@@ -112,3 +112,14 @@ body {
     opacity: 1;
   }
 }
+
+/* Incognito (Terminal/IDE) Theme */
+.theme-incognito {
+  --color-brand-primary: #569cd6;
+  --color-brand-secondary: #d4d4d4;
+  --color-brand-bg: #1e1e1e;
+  --color-brand-text: #d4d4d4;
+  --color-brand-border: #404040;
+  --color-brand-bubble-me: transparent;
+  --color-brand-bubble-other: transparent;
+}
