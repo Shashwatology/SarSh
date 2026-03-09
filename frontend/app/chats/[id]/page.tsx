@@ -716,9 +716,13 @@ export default function ChatScreen() {
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9"></path></svg>
                             </div>
                         </div>
-                        <div className="w-full flex justify-center py-3 text-[#858585] hover:text-white cursor-pointer mb-2">
+                        <button
+                            onClick={() => setShowThemePicker(!showThemePicker)}
+                            className="w-full flex justify-center py-3 text-[#858585] hover:text-white cursor-pointer mb-2 transition-colors"
+                            title="Manage / Themes"
+                        >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077l1.41-.513m14.095-5.13l1.41-.513M5.106 17.785l1.15-.964m11.49-9.642l1.149-.964M7.501 19.79l.39-1.51M14.11 3.235l.39-1.51M10.125 20.308l-.39-1.51m4.352-16.79l-.39-1.51M13.25 20.81l-1.41-.512M12 3.702l-1.41-.512m-5.836 12.87l.39-1.51m10.124-5.266l.39-1.51m-8.457-3.077l-1.41-.513m14.095 5.13l-1.41-.513"></path></svg>
-                        </div>
+                        </button>
                     </div>
                     {/* Explorer Sidebar */}
                     <div className="w-64 bg-[#252526] flex flex-col flex-shrink-0 z-30 hidden lg:flex border-r border-[#1e1e1e]">
@@ -857,33 +861,40 @@ export default function ChatScreen() {
                                 </button>
                                 <button
                                     onClick={() => setShowThemePicker(!showThemePicker)}
-                                    className="hover:text-[#cccccc] transition-colors"
+                                    className="hover:text-[#cccccc] transition-colors p-1"
                                     title="Change Theme & Options"
                                 >
-                                    <Palette size={13} />
+                                    <Palette size={16} />
                                 </button>
                                 {showThemePicker && (
-                                    <div className="absolute right-0 top-6 mt-1 w-48 bg-[#252526] border border-[#3c3c3c] shadow-2xl p-1 z-50 text-[#cccccc]">
-                                        <h3 className="text-[10px] px-2 py-1 uppercase tracking-wider text-[#858585] mb-1">Chat Theme</h3>
-                                        <div className="space-y-0.5">
-                                            {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(theme => (
+                                    <>
+                                        <div className="fixed inset-0 z-[45]" onClick={() => setShowThemePicker(false)} />
+                                        <div className="absolute right-0 top-8 mt-1 w-52 bg-[#252526] border border-[#3c3c3c] shadow-2xl p-1 z-50 text-[#cccccc] rounded-sm transform origin-top-right animate-[popIn_0.15s_ease-out]">
+                                            <h3 className="text-[10px] px-3 py-1.5 uppercase tracking-wider text-[#858585] mb-1 font-bold border-b border-[#3c3c3c]">Preferences: Theme</h3>
+                                            <div className="space-y-0.5 py-1">
+                                                {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(theme => (
+                                                    <button
+                                                        key={theme}
+                                                        onClick={() => handleThemeChange(theme)}
+                                                        className={`w-full text-left px-3 py-1.5 text-[12px] flex items-center justify-between hover:bg-[#04395e] hover:text-white transition-colors border border-transparent ${currentChat?.theme === theme ? 'bg-[#37373d] text-white' : ''}`}
+                                                    >
+                                                        <span className="flex items-center gap-2">
+                                                            {currentChat?.theme === theme && <div className="w-1 h-1 rounded-full bg-[#007acc]" />}
+                                                            {theme === 'default' ? 'Classic Blue' : theme === 'incognito' ? 'Incognito (VS Code)' : theme === 'ubuntu' ? 'Ubuntu Terminal' : theme}
+                                                        </span>
+                                                        <span className="text-[10px] opacity-40 uppercase">{theme === currentChat?.theme ? 'Active' : ''}</span>
+                                                    </button>
+                                                ))}
+                                                <div className="h-[1px] bg-[#3c3c3c] my-1 mx-1"></div>
                                                 <button
-                                                    key={theme}
-                                                    onClick={() => handleThemeChange(theme)}
-                                                    className={`w-full text-left px-2 py-1 text-[12px] flex items-center justify-between hover:bg-[#04395e] hover:text-white transition-colors border border-transparent ${currentChat?.theme === theme ? 'bg-[#37373d] border-[#007acc]' : ''}`}
+                                                    onClick={handleClearChat}
+                                                    className="w-full text-left px-3 py-1.5 text-[12px] text-[#f48771] hover:bg-[#902727] hover:text-white flex items-center gap-2 transition-colors rounded-sm"
                                                 >
-                                                    {theme === 'default' ? 'Classic Blue' : theme === 'incognito' ? 'Incognito (VS Code)' : theme === 'ubuntu' ? 'Ubuntu Terminal' : theme}
+                                                    <Trash2 size={12} /> Clear History
                                                 </button>
-                                            ))}
-                                            <div className="h-[1px] bg-[#3c3c3c] my-1 mx-1"></div>
-                                            <button
-                                                onClick={handleClearChat}
-                                                className="w-full text-left px-2 py-1 text-[12px] text-[#f48771] hover:bg-[#04395e] hover:text-white flex items-center gap-2 transition-colors"
-                                            >
-                                                <Trash2 size={12} /> Clear Chat
-                                            </button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    </>
                                 )}
                             </div>
                         </div>
