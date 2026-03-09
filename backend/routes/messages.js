@@ -244,6 +244,7 @@ router.post('/:id/react', auth, async (req, res) => {
 
 // Clear all messages in a chat
 router.delete('/clear/:chatId', auth, async (req, res) => {
+    const client = await pool.connect();
     try {
         const { chatId } = req.params;
         const userId = req.user.id;
@@ -258,13 +259,28 @@ router.delete('/clear/:chatId', auth, async (req, res) => {
             return res.status(403).json({ msg: 'Unauthorized to clear this chat' });
         }
 
-        // Hard delete all messages from this chat
-        await pool.query('DELETE FROM Messages WHERE chat_id = $1', [chatId]);
+        await client.query('BEGIN');
 
+        // 1. Clear reply_to_id self-references first to avoid foreign key issues
+        await client.query('UPDATE Messages SET reply_to_id = NULL WHERE chat_id = $1', [chatId]);
+
+        // 2. Clear reactions for these messages (even if ON DELETE CASCADE exists, this is safer for bulk)
+        await client.query(`
+            DELETE FROM MessageReactions 
+            WHERE message_id IN (SELECT id FROM Messages WHERE chat_id = $1)
+        `, [chatId]);
+
+        // 3. Clear all messages from this chat
+        await client.query('DELETE FROM Messages WHERE chat_id = $1', [chatId]);
+
+        await client.query('COMMIT');
         res.json({ msg: 'Chat cleared successfully' });
     } catch (err) {
-        console.error(err.message);
+        await client.query('ROLLBACK');
+        console.error('Clear Chat Error:', err.message);
         res.status(500).send('Server Error clearing chat');
+    } finally {
+        client.release();
     }
 });
 
