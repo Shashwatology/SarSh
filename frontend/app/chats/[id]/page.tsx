@@ -1483,7 +1483,7 @@ export default function ChatScreen() {
                             </div>
                         )}
 
-                        {canvasInvite && !isIncognito && (
+                        {canvasInvite && currentChat?.theme !== 'incognito' && currentChat?.theme !== 'ubuntu' && (
                             <div className="bg-[var(--color-brand-primary)]/20 border border-[var(--color-brand-primary)]/50 rounded-2xl mx-2 mb-3 p-3 flex items-center justify-between backdrop-blur-md shadow-lg animate-pulse">
                                 <div className="flex items-center text-white">
                                     <PenTool size={20} className="mr-3 flex-shrink-0 text-[var(--color-brand-primary)]" />
