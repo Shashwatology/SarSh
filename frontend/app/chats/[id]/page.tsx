@@ -5,7 +5,7 @@ import { useAuth, api } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
 import { useCall } from '@/context/CallContext';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Image as ImageIcon, Check, CheckCheck, ChevronDown, Edit2, Trash2, X, Mic, Square, Paperclip, FileText, Palette, Users, User as UserIcon, Reply, Forward, Phone, Video, PenTool, Eraser, Grid, Plus } from 'lucide-react';
+import { ArrowLeft, Send, Image as ImageIcon, Check, CheckCheck, ChevronDown, ChevronRight, MoreHorizontal, Edit2, Trash2, X, Mic, Square, Paperclip, FileText, Palette, Users, User as UserIcon, Reply, Forward, Phone, Video, PenTool, Eraser, Grid, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ChatScreen() {
