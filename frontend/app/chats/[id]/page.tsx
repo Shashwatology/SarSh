@@ -695,6 +695,10 @@ export default function ChatScreen() {
         setSwipeDistanceX(0);
     };
 
+    const isUbuntu = currentChat?.theme === 'ubuntu';
+    const myUsername = user?.username || 'user';
+    const otherUsername = currentChat?.is_group ? (currentChat?.group_name?.replace(/\s+/g, '_') || 'group') : (currentChat?.username?.replace(/\s+/g, '_') || 'user');
+
     return (
         <div className={`flex ${currentChat?.theme === 'incognito' ? 'flex-row' : 'flex-col'} h-[100dvh] w-full bg-black relative md:rounded-l-sm shadow-inner overflow-hidden theme-${currentChat?.theme || 'default'}`}>
             {currentChat?.theme === 'incognito' && (
@@ -764,7 +768,58 @@ export default function ChatScreen() {
                 </>
             )}
             {/* Main Content Area Wrapper */}
-            <div className={`flex flex-col flex-1 h-full w-full relative min-w-0 ${currentChat?.theme === 'incognito' ? 'bg-[#1e1e1e]' : ''}`}>
+            <div className={`flex flex-col flex-1 h-full w-full relative min-w-0 ${currentChat?.theme === 'incognito' ? 'bg-[#1e1e1e]' : ''} ${isUbuntu ? 'bg-[#300a24] font-mono' : ''}`}>
+                {/* Ubuntu Terminal Title Bar */}
+                {isUbuntu && (
+                    <div className="flex items-center justify-between bg-[#3c1f4a] px-4 h-[36px] border-b border-[#541d66] flex-shrink-0 select-none z-20">
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-[#ff5f57] border border-[#e14039] cursor-pointer" />
+                            <div className="w-3 h-3 rounded-full bg-[#febc2e] border border-[#d6a82a] cursor-pointer" />
+                            <div className="w-3 h-3 rounded-full bg-[#28c840] border border-[#1bad2f] cursor-pointer" />
+                        </div>
+                        <div className="text-[#e8c2f5] text-[12px] font-normal tracking-tight opacity-90">
+                            <span className="text-[#26a269] font-bold">{myUsername}</span>
+                            <span className="text-white">@</span>
+                            <span className="text-[#26a269] font-bold">ubuntu</span>
+                            <span className="text-white">:</span>
+                            <span className="text-[#3b78ff] font-bold">~</span>
+                            <span className="text-white"> — bash — 80×24</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowThemePicker(!showThemePicker)}
+                                className="text-[#e8c2f5] hover:text-white transition-colors"
+                                title="Change Theme"
+                            >
+                                <Palette size={14} />
+                            </button>
+                            {showThemePicker && (
+                                <div className="absolute right-2 top-8 mt-1 w-48 bg-[#300a24] border border-[#541d66] shadow-2xl p-1 z-50 text-[#e8c2f5] rounded">
+                                    <h3 className="text-[10px] px-2 py-1 uppercase tracking-wider text-[#9e6ab5] mb-1">Chat Theme</h3>
+                                    <div className="space-y-0.5">
+                                        {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(t => (
+                                            <button
+                                                key={t}
+                                                onClick={() => handleThemeChange(t)}
+                                                className={`w-full text-left px-2 py-1 text-[12px] flex items-center justify-between hover:bg-[#541d66] hover:text-white transition-colors ${currentChat?.theme === t ? 'bg-[#541d66] text-white' : ''}`}
+                                            >
+                                                {t === 'default' ? 'Classic Blue' : t === 'incognito' ? 'Incognito (VS Code)' : t === 'ubuntu' ? 'Ubuntu Terminal' : t}
+                                            </button>
+                                        ))}
+                                        <div className="h-[1px] bg-[#541d66] my-1 mx-1" />
+                                        <button
+                                            onClick={handleClearChat}
+                                            className="w-full text-left px-2 py-1 text-[12px] text-[#ef4444] hover:bg-[#541d66] hover:text-white flex items-center gap-2 transition-colors"
+                                        >
+                                            <Trash2 size={12} /> Clear Chat
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {/* Header */}
                 {currentChat?.theme === 'incognito' ? (
                     <div>
@@ -811,13 +866,13 @@ export default function ChatScreen() {
                                     <div className="absolute right-0 top-6 mt-1 w-48 bg-[#252526] border border-[#3c3c3c] shadow-2xl p-1 z-50 text-[#cccccc]">
                                         <h3 className="text-[10px] px-2 py-1 uppercase tracking-wider text-[#858585] mb-1">Chat Theme</h3>
                                         <div className="space-y-0.5">
-                                            {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito'].map(theme => (
+                                            {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(theme => (
                                                 <button
                                                     key={theme}
                                                     onClick={() => handleThemeChange(theme)}
                                                     className={`w-full text-left px-2 py-1 text-[12px] flex items-center justify-between hover:bg-[#04395e] hover:text-white transition-colors border border-transparent ${currentChat?.theme === theme ? 'bg-[#37373d] border-[#007acc]' : ''}`}
                                                 >
-                                                    {theme === 'default' ? 'Classic Blue' : theme === 'incognito' ? 'Incognito Mode' : theme}
+                                                    {theme === 'default' ? 'Classic Blue' : theme === 'incognito' ? 'Incognito (VS Code)' : theme === 'ubuntu' ? 'Ubuntu Terminal' : theme}
                                                 </button>
                                             ))}
                                             <div className="h-[1px] bg-[#3c3c3c] my-1 mx-1"></div>
@@ -893,13 +948,13 @@ export default function ChatScreen() {
                                 <div className="absolute right-0 top-12 mt-2 w-48 bg-[#2C2C2E] border border-[#38383A] rounded-2xl shadow-2xl p-2 z-50">
                                     <h3 className="text-white text-xs font-semibold px-3 pt-2 pb-3 uppercase tracking-wider text-[var(--color-text-secondary)]">Chat Theme</h3>
                                     <div className="space-y-1">
-                                        {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito'].map(theme => (
+                                        {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(theme => (
                                             <button
                                                 key={theme}
                                                 onClick={() => handleThemeChange(theme)}
                                                 className={`w-full text-left px-3 py-2 rounded-xl text-sm capitalize flex items-center justify-between ${currentChat?.theme === theme ? 'bg-white/10 text-white font-medium' : 'text-gray-300 hover:bg-white/5'}`}
                                             >
-                                                {theme === 'default' ? 'Classic Blue' : theme === 'incognito' ? 'Incognito Mode' : theme}
+                                                {theme === 'default' ? 'Classic Blue' : theme === 'incognito' ? 'Incognito (VS Code)' : theme === 'ubuntu' ? 'Ubuntu Terminal' : theme}
                                                 {currentChat?.theme === theme && <Check size={16} className="text-[var(--color-brand-primary)]" />}
                                             </button>
                                         ))}
@@ -917,9 +972,12 @@ export default function ChatScreen() {
                     </div>
                 )}
 
-                {/* Messages Area - Incognito overriding background pattern and layout */}
+                {/* Messages Area */}
                 <div
-                    className={`flex-1 overflow-y-auto px-4 md:px-8 z-10 flex flex-col gap-3 overflow-x-hidden transition-colors duration-300 relative ${currentChat?.theme === 'incognito' ? 'bg-[#1e1e1e] font-mono py-8' : 'chat-bg-pattern bg-[var(--color-brand-bg)] py-6'}`}
+                    className={`flex-1 overflow-y-auto z-10 flex flex-col overflow-x-hidden transition-colors duration-300 relative
+                    ${currentChat?.theme === 'incognito' ? 'bg-[#1e1e1e] font-mono py-8 px-4 md:px-8 gap-3' : ''}
+                    ${isUbuntu ? 'bg-[#300a24] font-mono py-4 px-3 gap-0' : ''}
+                    ${!currentChat?.theme || (currentChat.theme !== 'incognito' && currentChat.theme !== 'ubuntu') ? 'chat-bg-pattern bg-[var(--color-brand-bg)] py-6 px-4 md:px-8 gap-3' : ''}`}
                     onScroll={handleScroll}
                 >
 
@@ -972,6 +1030,50 @@ export default function ChatScreen() {
                         const isSwiping = swipingMessageId === msg.id;
                         const isActiveMenu = activeMenuId === msg.id;
                         const isIncognito = currentChat?.theme === 'incognito';
+                        const senderName = isMine ? myUsername : otherUsername;
+
+                        // Ubuntu-style prompt rendering
+                        if (isUbuntu) {
+                            const promptUser = isMine ? myUsername : otherUsername;
+                            const promptHost = isMine ? 'ubuntu' : 'ubuntu';
+                            const promptDir = isMine ? '~' : '~';
+
+                            return (
+                                <div key={msg.id || index} className="flex flex-col w-full font-mono text-[13px] leading-[1.5] py-[1px] hover:bg-white/5 select-text cursor-text">
+                                    {showDateSeparator && (
+                                        <div className="text-[#6e6e6e] text-[12px] py-1 pl-0">
+                                            {`# ─── Session ${format(msgDate, 'EEE dd MMM yyyy')} ───`}
+                                        </div>
+                                    )}
+                                    {msg.is_forwarded && (
+                                        <div className="text-[#6e6e6e] text-[11px] italic pl-1 mb-0.5">{'# Forwarded message'}</div>
+                                    )}
+                                    <div className="flex items-start">
+                                        <span className="shrink-0">
+                                            <span className="text-[#26a269] font-bold">{promptUser}</span>
+                                            <span className="text-white font-bold">@</span>
+                                            <span className="text-[#26a269] font-bold">{promptHost}</span>
+                                            <span className="text-white font-bold">:</span>
+                                            <span className="text-[#3b78ff] font-bold">{promptDir}</span>
+                                            <span className="text-white font-bold">$ </span>
+                                        </span>
+                                        <span className="text-[#f0f0f0] break-words flex-1 pl-1">
+                                            {msg.is_deleted ? (
+                                                <span className="text-[#6e6e6e] italic">{'# [message deleted]'}</span>
+                                            ) : msg.media_url ? (
+                                                <span className="text-[#a8cc8c]">{`xdg-open "${msg.media_type || 'file'}"`}</span>
+                                            ) : (
+                                                msg.content
+                                            )}
+                                        </span>
+                                        <span className="text-[#4c4c4c] text-[11px] ml-3 shrink-0 self-end">{format(new Date(msg.created_at || new Date()), 'HH:mm')}{isMine && (msg.status === 'read' ? ' ✓✓' : ' ✓')}</span>
+                                    </div>
+                                    {msg.reactions && msg.reactions.length > 0 && (
+                                        <div className="text-[#6e6e6e] text-[11px] pl-1 italic">{`# react: ${Array.from(new Set(msg.reactions.map((r: any) => r.reaction))).join('')}`}</div>
+                                    )}
+                                </div>
+                            );
+                        }
 
                         return (
                             <div key={msg.id || index} className={`flex w-full ${isIncognito ? 'mb-0 hover:bg-[#2a2d2e] group/line cursor-text' : 'flex-col mb-0.5'}`}>
@@ -1265,7 +1367,46 @@ export default function ChatScreen() {
                 )}
 
                 {/* Input Area */}
-                {currentChat?.theme === 'incognito' ? (
+                {isUbuntu ? (
+                    <div className="flex flex-col bg-[#300a24] border-t border-[#541d66] px-3 py-2 pb-3 font-mono z-20" onClick={() => document.getElementById('ubuntu-input')?.focus()}>
+                        {replyingTo && (
+                            <div className="text-[#6e6e6e] text-[12px] mb-1 italic pl-1">{'# replying to: "' + (replyingTo.content || 'media') + '"'}</div>
+                        )}
+                        <div className="flex items-start w-full">
+                            <span className="shrink-0 text-[13px]">
+                                <span className="text-[#26a269] font-bold">{myUsername}</span>
+                                <span className="text-white font-bold">@ubuntu</span>
+                                <span className="text-[#3b78ff] font-bold">:~</span>
+                                <span className="text-white font-bold">$ </span>
+                            </span>
+                            <form onSubmit={handleSendMessage} className="flex-1 flex">
+                                <textarea
+                                    id="ubuntu-input"
+                                    rows={1}
+                                    value={newMessage}
+                                    onChange={(e) => {
+                                        handleTyping(e as any);
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            if (newMessage.trim()) {
+                                                handleSendMessage(e as any);
+                                                e.currentTarget.style.height = 'auto';
+                                            }
+                                        }
+                                    }}
+                                    onPaste={handlePaste}
+                                    placeholder=""
+                                    className="flex-1 focus:outline-none resize-none bg-transparent text-[#f0f0f0] text-[13px] leading-relaxed min-h-[20px] max-h-[100px] hide-scrollbar caret-white py-0 ml-1"
+                                />
+                                <button type="submit" className="hidden">Send</button>
+                            </form>
+                        </div>
+                    </div>
+                ) : currentChat?.theme === 'incognito' ? (
                     <div className="flex flex-col w-full bg-[#1e1e1e] border-t border-[#2d2d2d] select-none font-mono z-20">
                         {/* Terminal Panel Tabs */}
                         <div className="flex items-center px-4 h-[35px] text-[11px] font-medium tracking-wide space-x-6 text-[#858585] uppercase">
