@@ -1670,9 +1670,8 @@ export default function ChatScreen() {
                             </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
-        </div >
     );
 }
