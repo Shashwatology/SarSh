@@ -297,28 +297,35 @@ router.delete('/clear/:chatId', auth, async (req, res) => {
 
         await client.query('BEGIN');
 
-        // 1. Clear reactions for these messages first
-        await client.query(
-            'DELETE FROM MessageReactions WHERE message_id IN (SELECT id FROM Messages WHERE chat_id = $1)',
-            [chatId]
-        );
+        // 1. Try to clear reactions (wrap in try-catch in case table doesn't exist yet)
+        try {
+            await client.query(
+                'DELETE FROM MessageReactions WHERE message_id IN (SELECT id FROM Messages WHERE chat_id = $1)',
+                [chatId]
+            );
+            console.log('Reactions cleared for chat:', chatId);
+        } catch (reacErr) {
+            console.warn('Could not clear MessageReactions (might not exist):', reacErr.message);
+        }
 
         // 2. Clear reply_to_id self-references to avoid circular dependencies during bulk delete
         await client.query('UPDATE Messages SET reply_to_id = NULL WHERE chat_id = $1', [chatId]);
 
         // 3. Delete all messages from this chat
+        // We do this in a single query since we've already unlinked replies
         const deleteResult = await client.query('DELETE FROM Messages WHERE chat_id = $1', [chatId]);
 
         await client.query('COMMIT');
         console.log(`Successfully cleared ${deleteResult.rowCount} messages from chat ${chatId}`);
-        res.json({ msg: 'Chat cleared successfully' });
+        res.json({ msg: 'Chat cleared successfully', count: deleteResult.rowCount });
     } catch (err) {
         if (client) await client.query('ROLLBACK');
-        console.error('Clear Chat Error DETAILS:', err);
+        console.error('CRITICAL Clear Chat Error:', err);
         res.status(500).json({ 
-            msg: 'Server Error clearing chat', 
+            msg: 'Failed to clear chat', 
             error: err.message,
-            detail: err.detail // SQL error details might show the blocking constraint
+            detail: err.detail,
+            hint: 'This usually happens if there are remaining message dependencies.'
         });
     } finally {
         if (client) client.release();

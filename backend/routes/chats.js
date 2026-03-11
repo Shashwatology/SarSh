@@ -130,16 +130,16 @@ router.post('/', auth, async (req, res) => {
 // Update chat theme
 router.put('/:id/theme', auth, async (req, res) => {
   try {
-    const { theme, isCoupleMode } = req.body;
+    const { theme } = req.body;
     const chatId = req.params.id;
 
     const updated = await pool.query(
-      'UPDATE Chats SET theme = $1, is_couple_mode = $2 WHERE id = $3 RETURNING *',
-      [theme, isCoupleMode || false, chatId]
+      'UPDATE Chats SET theme = $1 WHERE id = $2 RETURNING *',
+      [theme, chatId]
     );
 
     if (updated.rows.length === 0) {
-      return res.status(404).json({ msg: 'Chat not found' });
+      return res.status(404).json({ msg: 'Chat found' });
     }
 
     res.json(updated.rows[0]);

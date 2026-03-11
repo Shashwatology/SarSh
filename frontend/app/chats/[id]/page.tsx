@@ -312,10 +312,6 @@ export default function ChatScreen() {
                 suggestions = ["Let's talk calmly", "I understand why you're mad", "Take a breath..."];
             }
 
-            if (currentChat?.is_couple_mode) {
-                if (content.includes('love')) suggestions = ["Love you too! 💖", "Miss you! ✨", "You're the best!"];
-                else suggestions = [...suggestions, "Love you! 💕", "Miss you ❤️"];
-            }
             
             setAiSuggestions(suggestions);
         } else {
@@ -560,19 +556,7 @@ export default function ChatScreen() {
         // This would ideally call a backend Gemini route
         // Mocking romantic/cute polishing for now
         const text = newMessage.trim();
-        let polished = text;
-
-        if (currentChat?.is_couple_mode) {
-            const romantics = [
-                `${text} ❤️`,
-                `Hey love, ${text} ✨`,
-                `${text}, you're so sweet! 💕`,
-                `Just thinking of you... ${text} 💖`
-            ];
-            polished = romantics[Math.floor(Math.random() * romantics.length)];
-        } else {
-            polished = `${text} ✨`;
-        }
+        let polished = `${text} ✨`;
         
         setNewMessage(polished);
     };
@@ -671,24 +655,29 @@ export default function ChatScreen() {
         if (!window.confirm('Are you sure you want to clear all messages in this chat? This cannot be undone.')) return;
 
         try {
-            await api.delete(`/messages/clear/${id}`);
+            console.log('Initiating clear chat for ID:', id);
+            const res = await api.delete(`/messages/clear/${id}`);
+            console.log('Clear chat response:', res.data);
             setMessages([]);
             setShowThemePicker(false);
             vibrate(50);
-        } catch (err) {
-            console.error('Error clearing chat:', err);
-            alert('Failed to clear chat');
+            alert('Chat history cleared successfully!');
+        } catch (err: any) {
+            console.error('Frontend Clear Chat Error:', err);
+            const errMsg = err.response?.data?.error || err.message;
+            const errDetail = err.response?.data?.detail || '';
+            alert(`Failed to clear chat: ${errMsg}\n${errDetail}`);
         }
     };
 
-    const handleThemeChange = async (themeName: string, isCoupleMode: boolean = false) => {
+    const handleThemeChange = async (themeName: string) => {
         if (!currentChat) return;
         vibrate(10);
         try {
-            setCurrentChat((prev: any) => ({ ...prev, theme: themeName, is_couple_mode: isCoupleMode }));
+            setCurrentChat((prev: any) => ({ ...prev, theme: themeName }));
             setShowThemePicker(false);
-            await api.put(`/chats/${id}/theme`, { theme: themeName, is_couple_mode: isCoupleMode });
-            socket?.emit('change_theme', { chatId: String(id), theme: themeName, isCoupleMode });
+            await api.put(`/chats/${id}/theme`, { theme: themeName });
+            socket?.emit('change_theme', { chatId: String(id), theme: themeName });
         } catch (err) {
             console.error(err);
         }
@@ -1027,7 +1016,7 @@ export default function ChatScreen() {
                                             {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(t => (
                                                 <button
                                                     key={t}
-                                                    onClick={() => handleThemeChange(t, currentChat?.is_couple_mode)}
+                                                    onClick={() => handleThemeChange(t)}
                                                     className={`w-full text-left px-2 py-1 text-[12px] flex items-center justify-between hover:bg-[#541d66] hover:text-white transition-colors ${currentChat?.theme === t ? 'bg-[#541d66] text-white' : ''}`}
                                                 >
                                                     {t === 'default' ? 'Classic Blue' : t === 'incognito' ? 'Incognito (VS Code)' : t === 'ubuntu' ? 'Ubuntu Terminal' : t}
@@ -1116,7 +1105,7 @@ export default function ChatScreen() {
                                                     {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(theme => (
                                                         <button
                                                             key={theme}
-                                                            onClick={() => handleThemeChange(theme, currentChat?.is_couple_mode)}
+                                                            onClick={() => handleThemeChange(theme)}
                                                             className={`w-full text-left px-3 py-1.5 text-[12px] flex items-center justify-between hover:bg-[#04395e] hover:text-white transition-colors border border-transparent ${currentChat?.theme === theme ? 'bg-[#37373d] text-white' : ''}`}
                                                         >
                                                             <span className="flex items-center gap-2">
@@ -1240,7 +1229,7 @@ export default function ChatScreen() {
                                             {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(theme => (
                                                 <button
                                                     key={theme}
-                                                    onClick={() => handleThemeChange(theme, currentChat?.is_couple_mode)}
+                                                    onClick={() => handleThemeChange(theme)}
                                                     className={`w-full text-left px-3 py-2 rounded-xl text-sm capitalize flex items-center justify-between ${currentChat?.theme === theme ? 'bg-white/10 text-white font-medium' : 'text-gray-300 hover:bg-white/5'}`}
                                                 >
                                                     {theme === 'default' ? 'Classic Blue' : theme === 'incognito' ? 'Incognito (VS Code)' : theme === 'ubuntu' ? 'Ubuntu Terminal' : theme}
@@ -1248,15 +1237,6 @@ export default function ChatScreen() {
                                                 </button>
                                             ))}
                                             <div className="h-[1px] bg-white/10 my-1 mx-2"></div>
-                                            <button
-                                                onClick={() => {
-                                                    const newMode = !currentChat?.is_couple_mode;
-                                                    handleThemeChange(currentChat?.theme || 'default', newMode);
-                                                }}
-                                                className={`w-full text-left px-3 py-2 rounded-xl text-sm flex items-center gap-3 transition-colors ${currentChat?.is_couple_mode ? 'text-pink-400 bg-pink-500/10' : 'text-gray-300 hover:bg-white/5'}`}
-                                            >
-                                                <Heart size={16} fill={currentChat?.is_couple_mode ? "currentColor" : "none"} /> Couples Mode
-                                            </button>
                                             <button
                                                 onClick={handleClearChat}
                                                 className="w-full text-left px-3 py-2 rounded-xl text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors"
@@ -1279,35 +1259,6 @@ export default function ChatScreen() {
                     ${!currentChat?.theme || (currentChat.theme !== 'incognito' && currentChat.theme !== 'ubuntu') ? 'chat-bg-pattern bg-[var(--color-brand-bg)] py-6 px-4 md:px-8 gap-3' : ''}`}
                     onScroll={handleScroll}
                 >
-                    {/* Couples Dashboard */}
-                    {currentChat?.is_couple_mode && (
-                        <div className="bg-pink-500/10 backdrop-blur-md border border-pink-500/20 py-3 px-4 rounded-3xl mb-6 flex items-center justify-between sticky top-0 z-20 shadow-xl border-t-0 rounded-t-none">
-                            <div className="flex items-center gap-3 overflow-x-auto scrollbar-none">
-                                <div className="flex items-center gap-2 bg-pink-500/20 px-3 py-1.5 rounded-full whitespace-nowrap">
-                                    <Heart size={14} className="text-pink-400" fill="currentColor" />
-                                    <span className="text-pink-100 text-[11px] font-medium tracking-tight">365 Days Together</span>
-                                </div>
-                                <div className="flex items-center gap-2 bg-amber-500/20 px-3 py-1.5 rounded-full whitespace-nowrap">
-                                    <Flame size={14} className="text-amber-400" />
-                                    <span className="text-amber-100 text-[11px] font-medium tracking-tight">25 Day Streak</span>
-                                </div>
-                                <div className="flex items-center gap-2 bg-purple-500/20 px-3 py-1.5 rounded-full whitespace-nowrap">
-                                    <Sparkles size={14} className="text-purple-400" />
-                                    <span className="text-purple-100 text-[11px] font-medium tracking-tight">Anniversary (12d)</span>
-                                </div>
-                            </div>
-                            <button 
-                                onClick={() => {
-                                    vibrate(20);
-                                    socket?.emit('nudge', { chatId: id, senderId: user?.id });
-                                }}
-                                className="ml-3 p-2.5 bg-pink-500/20 hover:bg-pink-500/30 rounded-full text-pink-400 transition-all active:scale-90 flex-shrink-0" 
-                                title="Send Nudge"
-                            >
-                                <Heart size={18} fill="currentColor" />
-                            </button>
-                        </div>
-                    )}
 
                     {/* Blur Overlay when a message menu is open */}
                     {activeMenuId && currentChat?.theme !== 'incognito' && (
