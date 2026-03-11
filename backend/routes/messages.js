@@ -297,27 +297,44 @@ router.delete('/clear/:chatId', auth, async (req, res) => {
 
         await client.query('BEGIN');
 
-        // Clear reply_to_id self-references first to avoid foreign key issues
+        // 1. Clear reactions for these messages first
+        await client.query(
+            'DELETE FROM MessageReactions WHERE message_id IN (SELECT id FROM Messages WHERE chat_id = $1)',
+            [chatId]
+        );
+
+        // 2. Clear reply_to_id self-references to avoid circular dependencies during bulk delete
         await client.query('UPDATE Messages SET reply_to_id = NULL WHERE chat_id = $1', [chatId]);
 
-        // Delete all messages from this chat
-        // (Reactions are deleted automatically via ON DELETE CASCADE in the database schema)
-        await client.query('DELETE FROM Messages WHERE chat_id = $1', [chatId]);
+        // 3. Delete all messages from this chat
+        const deleteResult = await client.query('DELETE FROM Messages WHERE chat_id = $1', [chatId]);
 
         await client.query('COMMIT');
+        console.log(`Successfully cleared ${deleteResult.rowCount} messages from chat ${chatId}`);
         res.json({ msg: 'Chat cleared successfully' });
     } catch (err) {
-        await client.query('ROLLBACK');
-        console.error('Clear Chat Error:', err.message);
-        res.status(500).json({ msg: 'Server Error clearing chat', error: err.message });
+        if (client) await client.query('ROLLBACK');
+        console.error('Clear Chat Error DETAILS:', err);
+        res.status(500).json({ 
+            msg: 'Server Error clearing chat', 
+            error: err.message,
+            detail: err.detail // SQL error details might show the blocking constraint
+        });
     } finally {
-        client.release();
+        if (client) client.release();
     }
 });
 
 // AI Chat Summarization
 router.post('/summarize/:chatId', auth, async (req, res) => {
     try {
+        if (!process.env.GOOGLE_AI_KEY || process.env.GOOGLE_AI_KEY.includes('demo')) {
+            return res.status(400).json({ 
+                msg: 'AI Summarization key missing', 
+                error: 'Please add a valid GOOGLE_AI_KEY to your environment variables.' 
+            });
+        }
+
         const { chatId } = req.params;
         // Fetch last 50 messages
         const messages = await pool.query(
@@ -335,9 +352,12 @@ router.post('/summarize/:chatId', auth, async (req, res) => {
 
         const chatHistory = messages.rows.reverse().map(m => `${m.username}: ${m.content}`).join('\n');
         
+        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY);
+        const modelInstance = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
         const prompt = `Summarize the following chat history concisely in bullet points. Focus on key decisions, topics, and actions:\n\n${chatHistory}`;
         
-        const result = await model.generateContent(prompt);
+        const result = await modelInstance.generateContent(prompt);
         const summary = result.response.text();
 
         res.json({ summary });
