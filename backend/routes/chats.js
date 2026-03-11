@@ -14,6 +14,8 @@ router.get('/', auth, async (req, res) => {
         c.created_at,
         c.theme,
         c.is_group,
+        c.is_couple_mode,
+        c.anniversary_date,
         c.group_name,
         c.group_icon,
         -- For 1-on-1 chats, we want the other user's info. For groups, use group name.
@@ -128,12 +130,12 @@ router.post('/', auth, async (req, res) => {
 // Update chat theme
 router.put('/:id/theme', auth, async (req, res) => {
   try {
-    const { theme } = req.body;
+    const { theme, isCoupleMode } = req.body;
     const chatId = req.params.id;
 
     const updated = await pool.query(
-      'UPDATE Chats SET theme = $1 WHERE id = $2 RETURNING *',
-      [theme, chatId]
+      'UPDATE Chats SET theme = $1, is_couple_mode = $2 WHERE id = $3 RETURNING *',
+      [theme, isCoupleMode || false, chatId]
     );
 
     if (updated.rows.length === 0) {

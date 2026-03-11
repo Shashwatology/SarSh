@@ -18,8 +18,10 @@ interface CallContextType {
     callEnded: boolean;
     toggleMute: () => void;
     toggleVideo: () => void;
+    toggleScreenShare: () => void;
     isMuted: boolean;
     isVideoOff: boolean;
+    isSharingScreen: boolean;
 }
 
 const CallContext = createContext<CallContextType>({} as CallContextType);
@@ -47,6 +49,8 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
     // Media controls
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
+    const [isSharingScreen, setIsSharingScreen] = useState(false);
+    const screenStreamRef = useRef<MediaStream | null>(null);
 
     const peerConnection = useRef<RTCPeerConnection | null>(null);
 
@@ -239,8 +243,61 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
         setIsCaller(false);
         setIsMuted(false);
         setIsVideoOff(false);
+        setIsSharingScreen(false);
+        if (screenStreamRef.current) {
+            screenStreamRef.current.getTracks().forEach(track => track.stop());
+            screenStreamRef.current = null;
+        }
 
         setTimeout(() => setCallEnded(false), 2000); // Reset after 2s
+    };
+
+    const toggleScreenShare = async () => {
+        if (!peerConnection.current || !localStream) return;
+
+        if (!isSharingScreen) {
+            try {
+                const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                screenStreamRef.current = screenStream;
+                const screenTrack = screenStream.getVideoTracks()[0];
+
+                const senders = peerConnection.current.getSenders();
+                const videoSender = senders.find(s => s.track?.kind === 'video');
+
+                if (videoSender) {
+                    videoSender.replaceTrack(screenTrack);
+                }
+
+                screenTrack.onended = () => {
+                    stopScreenShare();
+                };
+
+                setIsSharingScreen(true);
+            } catch (err) {
+                console.error('Failed to start screen share', err);
+            }
+        } else {
+            stopScreenShare();
+        }
+    };
+
+    const stopScreenShare = () => {
+        if (!peerConnection.current || !localStream) return;
+
+        const videoTrack = localStream.getVideoTracks()[0];
+        const senders = peerConnection.current.getSenders();
+        const videoSender = senders.find(s => s.track?.kind === 'video');
+
+        if (videoSender) {
+            videoSender.replaceTrack(videoTrack);
+        }
+
+        if (screenStreamRef.current) {
+            screenStreamRef.current.getTracks().forEach(track => track.stop());
+            screenStreamRef.current = null;
+        }
+
+        setIsSharingScreen(false);
     };
 
     const toggleMute = () => {
@@ -268,7 +325,7 @@ export const CallProvider = ({ children }: { children: React.ReactNode }) => {
             callUser, answerCall, rejectCall, endCall,
             localStream, remoteStream, callData, isReceivingCall,
             isCaller, callAccepted, callEnded,
-            toggleMute, toggleVideo, isMuted, isVideoOff
+            toggleMute, toggleVideo, toggleScreenShare, isMuted, isVideoOff, isSharingScreen
         }}>
             {children}
         </CallContext.Provider>

@@ -3,6 +3,19 @@ const router = express.Router();
 const pool = require('../config/db');
 const auth = require('../middleware/auth');
 const { sendNotificationToUser } = require('./notifications');
+const ogs = require('open-graph-scraper');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// Helper to extract first URL from text
+const extractUrl = (text) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const matches = text.match(urlRegex);
+    return matches ? matches[0] : null;
+};
+
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_KEY || 'AIzaSy_demo_key');
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 // Get all messages for a specific chat
 router.get('/:chatId', auth, async (req, res) => {
@@ -24,7 +37,9 @@ router.get('/:chatId', auth, async (req, res) => {
              LEFT JOIN Users u ON m.sender_id = u.id 
              LEFT JOIN Messages rm ON m.reply_to_id = rm.id
              LEFT JOIN Users ru ON rm.sender_id = ru.id
-             WHERE m.chat_id = $1 ORDER BY m.created_at ASC`,
+             WHERE m.chat_id = $1 
+             AND (m.expires_at IS NULL OR m.expires_at > NOW())
+             ORDER BY m.created_at ASC`,
             [req.params.chatId]
         );
         res.json(messages.rows);
@@ -36,14 +51,35 @@ router.get('/:chatId', auth, async (req, res) => {
 
 // Send a new message
 router.post('/', auth, async (req, res) => {
-    const { chatId, content, mediaUrl, mediaType, replyToId, isForwarded } = req.body;
+    const { chatId, content, mediaUrl, mediaType, replyToId, isForwarded, pollData, expiresAt, isSecret } = req.body;
     const senderId = req.user.id;
+
+    let linkPreview = null;
+    if (content) {
+        const url = extractUrl(content);
+        if (url) {
+            try {
+                const { result } = await ogs({ url });
+                if (result.success) {
+                    linkPreview = {
+                        title: result.ogTitle || result.twitterTitle,
+                        description: result.ogDescription || result.twitterDescription,
+                        image: result.ogImage?.[0]?.url || result.twitterImage?.[0]?.url,
+                        siteName: result.ogSiteName || result.twitterSiteName,
+                        url: url
+                    };
+                }
+            } catch (ogsErr) {
+                console.error('Link preview fetch error:', ogsErr.message);
+            }
+        }
+    }
 
     try {
         const newMessage = await pool.query(
             `WITH inserted_msg AS (
-                INSERT INTO Messages (chat_id, sender_id, content, media_url, media_type, reply_to_id, is_forwarded) 
-                VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *
+                INSERT INTO Messages (chat_id, sender_id, content, media_url, media_type, reply_to_id, is_forwarded, link_preview, poll_data, expires_at, is_secret) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *
             )
             SELECT m.*, 
                    u.username as sender_name, 
@@ -56,7 +92,7 @@ router.post('/', auth, async (req, res) => {
             LEFT JOIN Users u ON m.sender_id = u.id
             LEFT JOIN Messages rm ON m.reply_to_id = rm.id
             LEFT JOIN Users ru ON rm.sender_id = ru.id`,
-            [chatId, senderId, content, mediaUrl, mediaType, replyToId || null, isForwarded || false]
+            [chatId, senderId, content, mediaUrl, mediaType, replyToId || null, isForwarded || false, linkPreview ? JSON.stringify(linkPreview) : null, pollData ? JSON.stringify(pollData) : null, expiresAt || null, isSecret || false]
         );
 
         const savedMessage = newMessage.rows[0];
@@ -261,16 +297,11 @@ router.delete('/clear/:chatId', auth, async (req, res) => {
 
         await client.query('BEGIN');
 
-        // 1. Clear reply_to_id self-references first to avoid foreign key issues
+        // Clear reply_to_id self-references first to avoid foreign key issues
         await client.query('UPDATE Messages SET reply_to_id = NULL WHERE chat_id = $1', [chatId]);
 
-        // 2. Clear reactions for these messages (even if ON DELETE CASCADE exists, this is safer for bulk)
-        await client.query(`
-            DELETE FROM MessageReactions 
-            WHERE message_id IN (SELECT id FROM Messages WHERE chat_id = $1)
-        `, [chatId]);
-
-        // 3. Clear all messages from this chat
+        // Delete all messages from this chat
+        // (Reactions are deleted automatically via ON DELETE CASCADE in the database schema)
         await client.query('DELETE FROM Messages WHERE chat_id = $1', [chatId]);
 
         await client.query('COMMIT');
@@ -278,9 +309,78 @@ router.delete('/clear/:chatId', auth, async (req, res) => {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Clear Chat Error:', err.message);
-        res.status(500).send('Server Error clearing chat');
+        res.status(500).json({ msg: 'Server Error clearing chat', error: err.message });
     } finally {
         client.release();
+    }
+});
+
+// AI Chat Summarization
+router.post('/summarize/:chatId', auth, async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        // Fetch last 50 messages
+        const messages = await pool.query(
+            `SELECT u.username, m.content, m.created_at 
+             FROM Messages m 
+             JOIN Users u ON m.sender_id = u.id 
+             WHERE m.chat_id = $1 AND m.content != '' 
+             ORDER BY m.created_at DESC LIMIT 50`,
+            [chatId]
+        );
+
+        if (messages.rows.length === 0) {
+            return res.json({ summary: "No messages to summarize yet!" });
+        }
+
+        const chatHistory = messages.rows.reverse().map(m => `${m.username}: ${m.content}`).join('\n');
+        
+        const prompt = `Summarize the following chat history concisely in bullet points. Focus on key decisions, topics, and actions:\n\n${chatHistory}`;
+        
+        const result = await model.generateContent(prompt);
+        const summary = result.response.text();
+
+        res.json({ summary });
+    } catch (err) {
+        console.error('Summarization error:', err);
+        res.status(500).json({ msg: 'AI Summarization failed', error: err.message });
+    }
+});
+
+// Vote in a Poll
+router.put('/:id/vote', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { optionIndex } = req.body;
+        const userId = req.user.id;
+
+        const message = await pool.query('SELECT poll_data FROM Messages WHERE id = $1', [id]);
+        if (message.rows.length === 0 || !message.rows[0].poll_data) {
+            return res.status(404).json({ msg: 'Poll not found' });
+        }
+
+        let pollData = message.rows[0].poll_data;
+        // pollData structure: { question, options: [{text, votes: [userIds]}] }
+        
+        // Remove user's previous vote if any
+        pollData.options.forEach(opt => {
+            opt.votes = opt.votes.filter(uid => uid !== userId);
+        });
+
+        // Add new vote
+        if (optionIndex !== null && optionIndex >= 0 && optionIndex < pollData.options.length) {
+            pollData.options[optionIndex].votes.push(userId);
+        }
+
+        const updated = await pool.query(
+            'UPDATE Messages SET poll_data = $1 WHERE id = $2 RETURNING *',
+            [JSON.stringify(pollData), id]
+        );
+
+        res.json(updated.rows[0]);
+    } catch (err) {
+        console.error('Poll vote error:', err);
+        res.status(500).json({ msg: 'Failed to vote' });
     }
 });
 

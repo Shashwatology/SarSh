@@ -217,6 +217,11 @@ io.on('connection', (socket) => {
         socket.to(String(data.chatId)).emit('draw_grid', data);
     });
 
+    socket.on('watch_together_sync', (data) => {
+        // data: { chatId, type: 'play'|'pause'|'seek', time: number, videoId: string }
+        socket.to(String(data.chatId)).emit('watch_together_sync', data);
+    });
+
     // Handle message delivery ACK
     socket.on('message_delivered', async (data) => {
         try {

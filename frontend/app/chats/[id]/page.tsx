@@ -5,8 +5,34 @@ import { useAuth, api } from '@/context/AuthContext';
 import { useSocket } from '@/context/SocketContext';
 import { useCall } from '@/context/CallContext';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Send, Image as ImageIcon, Check, CheckCheck, ChevronDown, ChevronRight, MoreHorizontal, Edit2, Trash2, X, Mic, Square, Paperclip, FileText, Palette, Users, User as UserIcon, Reply, Forward, Phone, Video, PenTool, Eraser, Grid, Plus } from 'lucide-react';
+import { ArrowLeft, Send, Image as ImageIcon, Check, CheckCheck, ChevronDown, ChevronRight, MoreHorizontal, Edit2, Trash2, X, Mic, Square, Paperclip, FileText, Palette, Users, User as UserIcon, Reply, Forward, Phone, Video, PenTool, Eraser, Grid, Plus, Search, Heart, Flame, Sparkles, BarChart2, ListTodo, MonitorPlay, Timer, BrainCircuit, History } from 'lucide-react';
 import { format } from 'date-fns';
+import { LinkPreview } from '@/components/LinkPreview';
+
+// Helper to render text with clickable links
+const renderContentWithLinks = (text: string, theme?: string) => {
+    if (!text) return null;
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlRegex);
+
+    return parts.map((part, i) => {
+        if (part.match(urlRegex)) {
+            return (
+                <a
+                    key={i}
+                    href={part}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${theme === 'ubuntu' ? 'text-[#a8cc8c] underline' : theme === 'incognito' ? 'text-[#ce9178] underline' : 'text-blue-300 underline hover:text-blue-200 transition-colors'}`}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {part}
+                </a>
+            );
+        }
+        return part;
+    });
+};
 
 export default function ChatScreen() {
     const { id } = useParams();
@@ -31,8 +57,26 @@ export default function ChatScreen() {
     const [allChats, setAllChats] = useState<any[]>([]);
     const [showAttachments, setShowAttachments] = useState(false);
     const [showScrollFAB, setShowScrollFAB] = useState(false);
+    const [pendingImage, setPendingImage] = useState<File | null>(null);
+    const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+    const [imageCaption, setImageCaption] = useState('');
+    const [showGifPicker, setShowGifPicker] = useState(false);
+    const [gifSearch, setGifSearch] = useState('');
+    const [gifs, setGifs] = useState<any[]>([]);
+    const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+    const [isSecretMode, setIsSecretMode] = useState(false);
+    const [secretTimer, setSecretTimer] = useState(60); // seconds
+    const [showPollModal, setShowPollModal] = useState(false);
+    const [pollQuestion, setPollQuestion] = useState('');
+    const [pollOptions, setPollOptions] = useState(['', '']);
+    const [showSummary, setShowSummary] = useState(false);
+    const [summaryText, setSummaryText] = useState('');
+    const [isSummarizing, setIsSummarizing] = useState(false);
+    const [showWatchTogether, setShowWatchTogether] = useState(false);
+    const [watchVideoUrl, setWatchVideoUrl] = useState('');
+    const { isSharingScreen, toggleScreenShare, callAccepted } = useCall();
 
-    const vibrate = (ms = 10) => {
+    const vibrate = (ms: number | number[] = 10) => {
         if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
             window.navigator.vibrate(ms);
         }
@@ -48,6 +92,7 @@ export default function ChatScreen() {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<BlobPart[]>([]);
     const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Gestures
     const [swipeStartX, setSwipeStartX] = useState<number | null>(null);
@@ -198,6 +243,18 @@ export default function ChatScreen() {
             drawTicTacToeGridLocally();
         });
 
+        socket.on('nudge', (data: any) => {
+            if (data.senderId !== user.id) {
+                vibrate([100, 50, 100, 50, 100]); // Love nudge vibration pattern
+            }
+        });
+
+        socket.on('watch_together_sync', (data: any) => {
+            setShowWatchTogether(true);
+            setWatchVideoUrl(data.videoId);
+            console.log('Syncing Watch Together:', data);
+        });
+
         return () => {
             socket.off('receive_message');
             socket.off('typing');
@@ -214,6 +271,57 @@ export default function ChatScreen() {
             socket.off('draw_grid');
         };
     }, [socket, id, user]);
+
+    useEffect(() => {
+        if (!showGifPicker) return;
+        
+        const fetchGifs = async () => {
+            const query = gifSearch || 'trending';
+            try {
+                // Using Giphy's public beta key for demonstration
+                const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&q=${query}&limit=20`);
+                const data = await res.json();
+                setGifs(data.data);
+            } catch (err) {
+                console.error('GIF error', err);
+            }
+        };
+
+        const timer = setTimeout(fetchGifs, 500);
+        return () => clearTimeout(timer);
+    }, [gifSearch, showGifPicker]);
+
+    useEffect(() => {
+        if (messages.length === 0 || !user) return;
+        
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg.sender_id !== user.id) {
+            const content = lastMsg.content.toLowerCase();
+            let suggestions = ["Okay", "Cool", "Nice!"];
+            
+            if (content.includes('?')) suggestions = ["Yes", "No", "Not sure"];
+            else if (content.includes('hi') || content.includes('hello')) suggestions = ["Hey!", "Hi there", "Hello!"];
+            else if (content.includes('how are you')) suggestions = ["I'm good!", "Pretty well", "Doing great!"];
+            
+            // AI Mood Detection
+            if (content.includes('sad') || content.includes('bad') || content.includes('sorry') || content.includes('hurt')) {
+                suggestions = ["I'm here for you ❤️", "Want to talk about it?", "I'm so sorry..."];
+            } else if (content.includes('happy') || content.includes('great') || content.includes('good') || content.includes('fun')) {
+                suggestions = ["That's amazing! 🥳", "Yay!!", "So happy for you!"];
+            } else if (content.includes('angry') || content.includes('mad') || content.includes('annoyed')) {
+                suggestions = ["Let's talk calmly", "I understand why you're mad", "Take a breath..."];
+            }
+
+            if (currentChat?.is_couple_mode) {
+                if (content.includes('love')) suggestions = ["Love you too! 💖", "Miss you! ✨", "You're the best!"];
+                else suggestions = [...suggestions, "Love you! 💕", "Miss you ❤️"];
+            }
+            
+            setAiSuggestions(suggestions);
+        } else {
+            setAiSuggestions([]);
+        }
+    }, [messages, user, currentChat]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -246,7 +354,6 @@ export default function ChatScreen() {
         }
     };
 
-    let typingTimeout: NodeJS.Timeout;
     const handleTyping = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         setNewMessage(e.target.value);
 
@@ -255,8 +362,8 @@ export default function ChatScreen() {
             socket?.emit('typing', { chatId: String(id), senderId: user?.id, isTyping: true });
         }
 
-        clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => {
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => {
             setIsTyping(false);
             socket?.emit('typing', { chatId: String(id), senderId: user?.id, isTyping: false });
         }, 2000);
@@ -302,11 +409,16 @@ export default function ChatScreen() {
             const res = await api.post('/messages', {
                 chatId: id,
                 content: tempMessage.content,
-                replyToId: tempMessage.reply_to_id
+                replyToId: tempMessage.reply_to_id,
+                isSecret: isSecretMode,
+                expiresAt: isSecretMode ? new Date(Date.now() + secretTimer * 1000).toISOString() : null
             });
 
             setMessages((prev) => prev.map(m => m.id === tempMessage.id ? res.data : m));
             socket?.emit('send_message', res.data);
+            if (isSecretMode) {
+                vibrate([50, 30, 50]);
+            }
         } catch (err) {
             console.error(err);
         }
@@ -340,6 +452,62 @@ export default function ChatScreen() {
             socket?.emit('send_message', res.data);
         } catch (err) {
             console.error(err);
+        }
+    };
+
+    const handleSendGif = async (gifUrl: string) => {
+        vibrate(10);
+        setShowGifPicker(false);
+        try {
+            const res = await api.post('/messages', { chatId: id, content: '', mediaUrl: gifUrl, mediaType: 'image' });
+            setMessages(prev => [...prev, res.data]);
+            socket?.emit('send_message', res.data);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleCreatePoll = async () => {
+        if (!pollQuestion.trim() || pollOptions.filter(o => o.trim()).length < 2) return;
+        vibrate(10);
+        const pollData = {
+            question: pollQuestion,
+            options: pollOptions.filter(o => o.trim()).map(o => ({ text: o, votes: [] }))
+        };
+        try {
+            const res = await api.post('/messages', { chatId: id, content: '📊 [Poll]: ' + pollQuestion, pollData });
+            setMessages(prev => [...prev, res.data]);
+            socket?.emit('send_message', res.data);
+            setShowPollModal(false);
+            setPollQuestion('');
+            setPollOptions(['', '']);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleVote = async (messageId: number, optionIndex: number) => {
+        vibrate(10);
+        try {
+            const res = await api.put(`/messages/${messageId}/vote`, { optionIndex });
+            setMessages(prev => prev.map(m => m.id === messageId ? res.data : m));
+            socket?.emit('edit_message', res.data); // reuse edit event for instant vote sync
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleSummarize = async () => {
+        vibrate(20);
+        setIsSummarizing(true);
+        setShowSummary(true);
+        try {
+            const res = await api.post(`/messages/summarize/${id}`);
+            setSummaryText(res.data.summary);
+        } catch (err) {
+            setSummaryText("Failed to generate summary. Make sure you have messages in this chat!");
+        } finally {
+            setIsSummarizing(false);
         }
     };
 
@@ -386,6 +554,29 @@ export default function ChatScreen() {
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const handleAiPolish = async () => {
+        if (!newMessage.trim()) return;
+        vibrate(10);
+        // This would ideally call a backend Gemini route
+        // Mocking romantic/cute polishing for now
+        const text = newMessage.trim();
+        let polished = text;
+
+        if (currentChat?.is_couple_mode) {
+            const romantics = [
+                `${text} ❤️`,
+                `Hey love, ${text} ✨`,
+                `${text}, you're so sweet! 💕`,
+                `Just thinking of you... ${text} 💖`
+            ];
+            polished = romantics[Math.floor(Math.random() * romantics.length)];
+        } else {
+            polished = `${text} ✨`;
+        }
+        
+        setNewMessage(polished);
+    };
+
     const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -427,7 +618,36 @@ export default function ChatScreen() {
         const file = e.target.files?.[0];
         if (file) {
             e.target.value = '';
-            await uploadFileDirectly(file);
+            setPendingImage(file);
+            setPendingImageUrl(URL.createObjectURL(file));
+            setImageCaption('');
+        }
+    };
+
+    const handleSendPendingImage = async () => {
+        if (!pendingImage) return;
+        vibrate(10);
+        
+        const file = pendingImage;
+        const caption = imageCaption;
+        
+        setPendingImage(null);
+        setPendingImageUrl(null);
+        setImageCaption('');
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const uploadRes = await api.post('/upload', formData);
+            const { mediaUrl, mediaType } = uploadRes.data;
+            const res = await api.post('/messages', { chatId: id, content: caption, mediaUrl, mediaType });
+
+            setMessages((prev) => [...prev, res.data]);
+            socket?.emit('send_message', res.data);
+        } catch (err) {
+            console.error('Image upload failed:', err);
+            alert('Failed to send image');
         }
     };
 
@@ -461,13 +681,14 @@ export default function ChatScreen() {
         }
     };
 
-    const handleThemeChange = async (themeName: string) => {
+    const handleThemeChange = async (themeName: string, isCoupleMode: boolean = false) => {
         if (!currentChat) return;
+        vibrate(10);
         try {
-            setCurrentChat((prev: any) => ({ ...prev, theme: themeName }));
+            setCurrentChat((prev: any) => ({ ...prev, theme: themeName, is_couple_mode: isCoupleMode }));
             setShowThemePicker(false);
-            await api.put(`/chats/${id}/theme`, { theme: themeName });
-            socket?.emit('change_theme', { chatId: String(id), theme: themeName });
+            await api.put(`/chats/${id}/theme`, { theme: themeName, is_couple_mode: isCoupleMode });
+            socket?.emit('change_theme', { chatId: String(id), theme: themeName, isCoupleMode });
         } catch (err) {
             console.error(err);
         }
@@ -798,27 +1019,30 @@ export default function ChatScreen() {
                                 <Palette size={14} />
                             </button>
                             {showThemePicker && (
-                                <div className="absolute right-2 top-8 mt-1 w-48 bg-[#300a24] border border-[#541d66] shadow-2xl p-1 z-50 text-[#e8c2f5] rounded">
-                                    <h3 className="text-[10px] px-2 py-1 uppercase tracking-wider text-[#9e6ab5] mb-1">Chat Theme</h3>
-                                    <div className="space-y-0.5">
-                                        {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(t => (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowThemePicker(false)} />
+                                    <div className="absolute right-2 top-8 mt-1 w-48 bg-[#300a24] border border-[#541d66] shadow-2xl p-1 z-50 text-[#e8c2f5] rounded">
+                                        <h3 className="text-[10px] px-2 py-1 uppercase tracking-wider text-[#9e6ab5] mb-1">Chat Theme</h3>
+                                        <div className="space-y-0.5">
+                                            {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(t => (
+                                                <button
+                                                    key={t}
+                                                    onClick={() => handleThemeChange(t, currentChat?.is_couple_mode)}
+                                                    className={`w-full text-left px-2 py-1 text-[12px] flex items-center justify-between hover:bg-[#541d66] hover:text-white transition-colors ${currentChat?.theme === t ? 'bg-[#541d66] text-white' : ''}`}
+                                                >
+                                                    {t === 'default' ? 'Classic Blue' : t === 'incognito' ? 'Incognito (VS Code)' : t === 'ubuntu' ? 'Ubuntu Terminal' : t}
+                                                </button>
+                                            ))}
+                                            <div className="h-[1px] bg-[#541d66] my-1 mx-1" />
                                             <button
-                                                key={t}
-                                                onClick={() => handleThemeChange(t)}
-                                                className={`w-full text-left px-2 py-1 text-[12px] flex items-center justify-between hover:bg-[#541d66] hover:text-white transition-colors ${currentChat?.theme === t ? 'bg-[#541d66] text-white' : ''}`}
+                                                onClick={handleClearChat}
+                                                className="w-full text-left px-2 py-1 text-[12px] text-[#ef4444] hover:bg-[#541d66] hover:text-white flex items-center gap-2 transition-colors"
                                             >
-                                                {t === 'default' ? 'Classic Blue' : t === 'incognito' ? 'Incognito (VS Code)' : t === 'ubuntu' ? 'Ubuntu Terminal' : t}
+                                                <Trash2 size={12} /> Clear Chat
                                             </button>
-                                        ))}
-                                        <div className="h-[1px] bg-[#541d66] my-1 mx-1" />
-                                        <button
-                                            onClick={handleClearChat}
-                                            className="w-full text-left px-2 py-1 text-[12px] text-[#ef4444] hover:bg-[#541d66] hover:text-white flex items-center gap-2 transition-colors"
-                                        >
-                                            <Trash2 size={12} /> Clear Chat
-                                        </button>
+                                        </div>
                                     </div>
-                                </div>
+                                </>
                             )}
                         </div>
                     </div>
@@ -936,6 +1160,20 @@ export default function ChatScreen() {
                             {!currentChat?.is_group && (
                                 <>
                                     <button
+                                        onClick={handleSummarize}
+                                        className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 text-[var(--color-brand-primary)] transition-colors"
+                                        title="AI Summarize Chat"
+                                    >
+                                        <BrainCircuit size={20} className="w-5 h-5 sm:w-5 sm:h-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowWatchTogether(true)}
+                                        className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 text-[var(--color-brand-primary)] transition-colors mr-0.5"
+                                        title="Watch Together"
+                                    >
+                                        <MonitorPlay size={22} className="w-5 h-5 sm:w-6 sm:h-6" />
+                                    </button>
+                                    <button
                                         onClick={() => callUser(currentChat?.other_user_id || Number(id), false, currentChat?.username, id as string)}
                                         className="p-1.5 sm:p-2 rounded-full hover:bg-white/10 text-[var(--color-brand-primary)] transition-colors"
                                     >
@@ -947,6 +1185,15 @@ export default function ChatScreen() {
                                     >
                                         <Video size={22} className="w-5 h-5 sm:w-6 sm:h-6" />
                                     </button>
+                                    {callAccepted && (
+                                        <button
+                                            onClick={toggleScreenShare}
+                                            className={`p-1.5 sm:p-2 rounded-full transition-colors mr-0.5 ${isSharingScreen ? 'bg-green-500/20 text-green-400' : 'hover:bg-white/10 text-[var(--color-brand-primary)]'}`}
+                                            title="Share Screen"
+                                        >
+                                            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                        </button>
+                                    )}
                                 </>
                             )}
                             <button
@@ -956,28 +1203,52 @@ export default function ChatScreen() {
                                 <Palette size={22} />
                             </button>
                             {showThemePicker && (
-                                <div className="absolute right-0 top-12 mt-2 w-48 bg-[#2C2C2E] border border-[#38383A] rounded-2xl shadow-2xl p-2 z-50">
-                                    <h3 className="text-white text-xs font-semibold px-3 pt-2 pb-3 uppercase tracking-wider text-[var(--color-text-secondary)]">Chat Theme</h3>
-                                    <div className="space-y-1">
-                                        {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(theme => (
+                                <>
+                                    <div className="fixed inset-0 z-40" onClick={() => setShowThemePicker(false)} />
+                                    <div className="absolute right-0 top-12 mt-2 w-48 bg-[#2C2C2E] border border-[#38383A] rounded-2xl shadow-2xl p-2 z-50">
+                                        <h3 className="text-white text-xs font-semibold px-3 pt-2 pb-3 uppercase tracking-wider text-[var(--color-text-secondary)]">Chat Theme</h3>
+                                        <div className="space-y-1">
+                                            <div className="px-3 py-2 flex items-center justify-between border-b border-white/10 mb-1 pb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <Timer size={14} className={isSecretMode ? 'text-amber-400' : 'text-gray-400'} />
+                                                    <span className="text-[11px] text-white font-medium uppercase tracking-tight">Secret Mode</span>
+                                                </div>
+                                                <button 
+                                                    onClick={() => setIsSecretMode(!isSecretMode)}
+                                                    className={`w-8 h-4 rounded-full relative transition-colors ${isSecretMode ? 'bg-amber-500' : 'bg-gray-600'}`}
+                                                >
+                                                    <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${isSecretMode ? 'right-0.5' : 'left-0.5'}`} />
+                                                </button>
+                                            </div>
+                                            {['default', 'instagram', 'hacker', 'rose', 'ocean', 'incognito', 'ubuntu'].map(theme => (
+                                                <button
+                                                    key={theme}
+                                                    onClick={() => handleThemeChange(theme, currentChat?.is_couple_mode)}
+                                                    className={`w-full text-left px-3 py-2 rounded-xl text-sm capitalize flex items-center justify-between ${currentChat?.theme === theme ? 'bg-white/10 text-white font-medium' : 'text-gray-300 hover:bg-white/5'}`}
+                                                >
+                                                    {theme === 'default' ? 'Classic Blue' : theme === 'incognito' ? 'Incognito (VS Code)' : theme === 'ubuntu' ? 'Ubuntu Terminal' : theme}
+                                                    {currentChat?.theme === theme && <Check size={16} className="text-[var(--color-brand-primary)]" />}
+                                                </button>
+                                            ))}
+                                            <div className="h-[1px] bg-white/10 my-1 mx-2"></div>
                                             <button
-                                                key={theme}
-                                                onClick={() => handleThemeChange(theme)}
-                                                className={`w-full text-left px-3 py-2 rounded-xl text-sm capitalize flex items-center justify-between ${currentChat?.theme === theme ? 'bg-white/10 text-white font-medium' : 'text-gray-300 hover:bg-white/5'}`}
+                                                onClick={() => {
+                                                    const newMode = !currentChat?.is_couple_mode;
+                                                    handleThemeChange(currentChat?.theme || 'default', newMode);
+                                                }}
+                                                className={`w-full text-left px-3 py-2 rounded-xl text-sm flex items-center gap-3 transition-colors ${currentChat?.is_couple_mode ? 'text-pink-400 bg-pink-500/10' : 'text-gray-300 hover:bg-white/5'}`}
                                             >
-                                                {theme === 'default' ? 'Classic Blue' : theme === 'incognito' ? 'Incognito (VS Code)' : theme === 'ubuntu' ? 'Ubuntu Terminal' : theme}
-                                                {currentChat?.theme === theme && <Check size={16} className="text-[var(--color-brand-primary)]" />}
+                                                <Heart size={16} fill={currentChat?.is_couple_mode ? "currentColor" : "none"} /> Couples Mode
                                             </button>
-                                        ))}
-                                        <div className="h-[1px] bg-white/10 my-1 mx-2"></div>
-                                        <button
-                                            onClick={handleClearChat}
-                                            className="w-full text-left px-3 py-2 rounded-xl text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors"
-                                        >
-                                            <Trash2 size={16} /> Clear Chat
-                                        </button>
+                                            <button
+                                                onClick={handleClearChat}
+                                                className="w-full text-left px-3 py-2 rounded-xl text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors"
+                                            >
+                                                <Trash2 size={16} /> Clear Chat
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                </>
                             )}
                         </div>
                     </div>
@@ -991,6 +1262,35 @@ export default function ChatScreen() {
                     ${!currentChat?.theme || (currentChat.theme !== 'incognito' && currentChat.theme !== 'ubuntu') ? 'chat-bg-pattern bg-[var(--color-brand-bg)] py-6 px-4 md:px-8 gap-3' : ''}`}
                     onScroll={handleScroll}
                 >
+                    {/* Couples Dashboard */}
+                    {currentChat?.is_couple_mode && (
+                        <div className="bg-pink-500/10 backdrop-blur-md border border-pink-500/20 py-3 px-4 rounded-3xl mb-6 flex items-center justify-between sticky top-0 z-20 shadow-xl border-t-0 rounded-t-none">
+                            <div className="flex items-center gap-3 overflow-x-auto scrollbar-none">
+                                <div className="flex items-center gap-2 bg-pink-500/20 px-3 py-1.5 rounded-full whitespace-nowrap">
+                                    <Heart size={14} className="text-pink-400" fill="currentColor" />
+                                    <span className="text-pink-100 text-[11px] font-medium tracking-tight">365 Days Together</span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-amber-500/20 px-3 py-1.5 rounded-full whitespace-nowrap">
+                                    <Flame size={14} className="text-amber-400" />
+                                    <span className="text-amber-100 text-[11px] font-medium tracking-tight">25 Day Streak</span>
+                                </div>
+                                <div className="flex items-center gap-2 bg-purple-500/20 px-3 py-1.5 rounded-full whitespace-nowrap">
+                                    <Sparkles size={14} className="text-purple-400" />
+                                    <span className="text-purple-100 text-[11px] font-medium tracking-tight">Anniversary (12d)</span>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    vibrate(20);
+                                    socket?.emit('nudge', { chatId: id, senderId: user?.id });
+                                }}
+                                className="ml-3 p-2.5 bg-pink-500/20 hover:bg-pink-500/30 rounded-full text-pink-400 transition-all active:scale-90 flex-shrink-0" 
+                                title="Send Nudge"
+                            >
+                                <Heart size={18} fill="currentColor" />
+                            </button>
+                        </div>
+                    )}
 
                     {/* Blur Overlay when a message menu is open */}
                     {activeMenuId && currentChat?.theme !== 'incognito' && (
@@ -1203,7 +1503,7 @@ export default function ChatScreen() {
                                                 <span className="text-[#d16969] italic">{"import { blob } from '" + msg.media_type + "'; "}</span>
                                             )}
 
-                                            <div className={`flex flex-wrap items-end gap-3 ${isIncognito ? 'inline' : ''}`}>
+                                            <div className={`flex flex-col gap-1 ${isIncognito ? 'inline' : ''}`}>
                                                 {msg.content && msg.media_type !== 'document' && (
                                                     <span className={`break-words whitespace-pre-wrap ${isIncognito ? 'inline' : 'flex-1'} ${msg.is_deleted && !isIncognito ? 'text-white/70 text-[15px]' : ''}`}>
                                                         {isIncognito ? (
@@ -1212,8 +1512,55 @@ export default function ChatScreen() {
                                                             ) : (
                                                                 <><span className="text-[#4ec9b0]">console</span>.<span className="text-[#dcdcaa]">log</span>(<span className="text-[#ce9178]">"{msg.content}"</span>);<span className="text-[#608b4e] ml-4 text-[11px]">{"// " + format(new Date(msg.created_at || new Date()), 'HH:mm')}</span></>
                                                             )
-                                                        ) : msg.content}
+                                                        ) : renderContentWithLinks(msg.content, currentChat?.theme)}
                                                     </span>
+                                                )}
+
+                                                {/* Poll Content */}
+                                                {msg.poll_data && !isIncognito && (
+                                                    <div className="mt-3 bg-white/5 rounded-2xl p-4 border border-white/10 space-y-3 min-w-[220px]">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <BarChart2 size={16} className="text-[var(--color-brand-primary)]" />
+                                                            <span className="font-semibold text-sm text-white">{msg.poll_data.question}</span>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            {msg.poll_data.options.map((opt: any, idx: number) => {
+                                                                const totalVotes = msg.poll_data.options.reduce((acc: number, o: any) => acc + (o.votes?.length || 0), 0);
+                                                                const voteCount = opt.votes?.length || 0;
+                                                                const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
+                                                                // @ts-ignore
+                                                                const hasVoted = opt.votes?.includes(user?.id);
+
+                                                                return (
+                                                                    <button
+                                                                        key={idx}
+                                                                        onClick={() => handleVote(msg.id, idx)}
+                                                                        className={`w-full group/poll relative overflow-hidden rounded-xl border transition-all duration-300 ${hasVoted ? 'border-[var(--color-brand-primary)] bg-[var(--color-brand-primary)]/10' : 'border-white/10 hover:border-white/20 bg-white/5'}`}
+                                                                    >
+                                                                        <div 
+                                                                            className="absolute inset-y-0 left-0 bg-[var(--color-brand-primary)]/20 transition-all duration-500 ease-out" 
+                                                                            style={{ width: `${percentage}%` }}
+                                                                        />
+                                                                        <div className="relative px-3 py-2.5 flex items-center justify-between text-xs sm:text-sm">
+                                                                            <span className="font-medium text-white/90">{opt.text}</span>
+                                                                            <span className="text-white/50 font-mono">{percentage}%</span>
+                                                                        </div>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <div className="pt-1 flex items-center justify-between text-[10px] text-white/30 font-medium px-1">
+                                                            <span>{msg.poll_data.options.reduce((acc: number, o: any) => acc + (o.votes?.length || 0), 0)} votes</span>
+                                                            {msg.is_secret && <span className="flex items-center gap-1 text-amber-400/60"><Timer size={10} /> Secret</span>}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {!msg.is_deleted && msg.link_preview && (
+                                                    <LinkPreview
+                                                        preview={typeof msg.link_preview === 'string' ? JSON.parse(msg.link_preview) : msg.link_preview}
+                                                        theme={currentChat?.theme}
+                                                    />
                                                 )}
 
                                                 {!isIncognito && (
@@ -1526,7 +1873,25 @@ export default function ChatScreen() {
                             </div>
                         )}
 
-                        <div className="flex items-end w-full">
+                        <div className="flex items-end w-full relative">
+                            {/* AI Suggestions */}
+                            {aiSuggestions.length > 0 && (
+                                <div className="absolute bottom-full mb-3 left-0 right-0 flex justify-center gap-2 overflow-x-auto pb-2 scrollbar-none z-30">
+                                    {aiSuggestions.map((suggestion, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => {
+                                                setNewMessage(suggestion);
+                                                setAiSuggestions([]);
+                                            }}
+                                            className="bg-white/10 backdrop-blur-md border border-white/10 text-white/90 px-4 py-2 rounded-full text-sm font-medium hover:bg-[var(--color-brand-primary)] hover:text-white transition-all whitespace-nowrap shadow-xl"
+                                        >
+                                            {suggestion}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
                             {isRecording ? (
                                 <div className="flex-1 flex items-center justify-between mx-2 bg-red-500/10 rounded-3xl px-4 py-2.5 border border-red-500/20 min-h-[44px]">
                                     <div className="flex items-center text-red-500 animate-pulse">
@@ -1556,6 +1921,12 @@ export default function ChatScreen() {
                                                 <button onClick={() => { setShowAttachments(false); fileInputRef.current?.click(); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
                                                     <div className="bg-green-500/20 p-1.5 rounded-lg text-green-400"><ImageIcon size={18} /></div> Image
                                                 </button>
+                                                <button onClick={() => { setShowAttachments(false); setShowGifPicker(true); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
+                                                    <div className="bg-amber-500/20 p-1.5 rounded-lg text-amber-400"><Grid size={18} /></div> GIFs
+                                                </button>
+                                                <button onClick={() => { setShowAttachments(false); setShowPollModal(true); }} className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/10 rounded-xl transition-colors text-white text-sm font-medium">
+                                                    <div className="bg-orange-500/20 p-1.5 rounded-lg text-orange-400"><BarChart2 size={18} /></div> Create Poll
+                                                </button>
                                                 <input type="file" ref={documentInputRef} className="hidden" accept=".pdf,.doc,.docx,.txt" onChange={handleDocumentUpload} />
                                                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageUpload} />
                                             </div>
@@ -1584,17 +1955,29 @@ export default function ChatScreen() {
                                                 }}
                                                 onPaste={handlePaste}
                                                 placeholder={editingMessage ? "Edit message..." : "Message (paste image here)..."}
-                                                className="flex-1 outline-none text-white bg-transparent placeholder-[#8E8E93] text-[14px] sm:text-[15px] resize-none overflow-y-auto min-h-[24px] max-h-[120px] py-1 hide-scrollbar"
+                                                className="flex-1 outline-none text-white bg-transparent placeholder-[#8E8E93] text-[14px] sm:text-[15px] resize-none overflow-y-auto min-h-[24px] max-h-[120px] py-1 hide-scrollbar pr-14"
                                             />
-                                            {editingMessage && (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => { setEditingMessage(null); setNewMessage(''); }}
-                                                    className="ml-2 text-[#8E8E93] hover:text-white transition-colors p-1"
-                                                >
-                                                    <X size={20} />
-                                                </button>
-                                            )}
+                                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                {newMessage.trim() && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleAiPolish}
+                                                        className="text-pink-400 hover:text-pink-300 p-1 transition-colors"
+                                                        title="AI Love Polish ✨"
+                                                    >
+                                                        <Sparkles size={18} />
+                                                    </button>
+                                                )}
+                                                {editingMessage && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setEditingMessage(null); setNewMessage(''); }}
+                                                        className="text-[#8E8E93] hover:text-white transition-colors p-1"
+                                                    >
+                                                        <X size={20} />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </form>
                                 </>
@@ -1683,6 +2066,266 @@ export default function ChatScreen() {
                     </div>
                 )}
             </div>
+            {/* Image Review Modal */}
+            {pendingImageUrl && (
+                <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-8 animate-[fadeIn_0.2s_ease-out]">
+                    <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex gap-4">
+                        <button 
+                            onClick={() => { setPendingImage(null); setPendingImageUrl(null); }}
+                            className="text-white/60 hover:text-white p-2 bg-white/10 rounded-full transition-colors"
+                        >
+                            <X size={24} />
+                        </button>
+                    </div>
+                    
+                    <div className="w-full max-w-4xl flex-1 flex flex-col items-center justify-center gap-6 overflow-hidden">
+                        <div className="flex-1 w-full relative group">
+                            <img 
+                                src={pendingImageUrl} 
+                                alt="Preview" 
+                                className="w-full h-full object-contain rounded-2xl shadow-2xl"
+                            />
+                        </div>
+                        
+                        <div className="w-full max-w-2xl bg-white/10 backdrop-blur-xl p-4 rounded-3xl border border-white/10 shadow-2xl flex items-end gap-3 translate-y-0 group-focus-within:-translate-y-2 transition-transform">
+                            <textarea
+                                rows={1}
+                                value={imageCaption}
+                                onChange={(e) => {
+                                    setImageCaption(e.target.value);
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                                }}
+                                placeholder="Add a caption..."
+                                className="flex-1 bg-transparent text-white focus:outline-none resize-none py-2 px-2 text-[15px] leading-relaxed max-h-[120px]"
+                            />
+                            <button
+                                onClick={handleSendPendingImage}
+                                className="bg-[var(--color-brand-primary)] text-white p-3 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all flex-shrink-0"
+                            >
+                                <Send size={22} />
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="mt-8 text-white/40 text-sm font-medium tracking-wide">
+                        PREVIEW FOR {currentChat?.is_group ? currentChat?.group_name : currentChat?.username}
+                    </div>
+                </div>
+            )}
+
+            {/* GIF Picker Modal */}
+            {showGifPicker && (
+                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="w-full max-w-md bg-[#1C1C1E] border border-white/10 rounded-3xl shadow-2xl flex flex-col h-[600px] overflow-hidden animate-[scaleIn_0.2s_ease-out]">
+                        <div className="p-4 border-b border-white/5 flex items-center justify-between">
+                            <h3 className="text-white font-semibold">Search GIFs</h3>
+                            <button onClick={() => setShowGifPicker(false)} className="text-white/40 hover:text-white p-1">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        
+                        <div className="p-4">
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" size={18} />
+                                <input 
+                                    type="text" 
+                                    value={gifSearch}
+                                    onChange={(e) => setGifSearch(e.target.value)}
+                                    placeholder="Search via Giphy..."
+                                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-white focus:outline-none focus:border-[var(--color-brand-primary)]"
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="flex-1 overflow-y-auto p-4 pt-0 grid grid-cols-2 gap-2 scrollbar-none">
+                            {gifs.map((gif: any) => (
+                                <button 
+                                    key={gif.id}
+                                    onClick={() => handleSendGif(gif.images.fixed_height.url)}
+                                    className="relative group rounded-xl overflow-hidden aspect-video bg-white/5"
+                                >
+                                    <img 
+                                        src={gif.images.fixed_height.url} 
+                                        alt={gif.title}
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                    />
+                                    <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </button>
+                            ))}
+                        </div>
+                        
+                        <div className="p-3 text-center border-t border-white/5">
+                            <img src="https://static.giphy.com/static/img/about/giphy_logo_light_text.png" className="h-4 inline-block opacity-40" />
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Phase 3 Modals */}
+            
+            {/* Poll Modal */}
+            {showPollModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]">
+                    <div className="w-full max-w-md bg-[#1C1C1E] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+                        <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-white/5">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-orange-500/20 p-2 rounded-xl text-orange-400">
+                                    <BarChart2 size={24} />
+                                </div>
+                                <h2 className="text-xl font-bold text-white tracking-tight">Create Poll</h2>
+                            </div>
+                            <button onClick={() => setShowPollModal(false)} className="text-white/40 hover:text-white transition-colors">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-5">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-white/40 uppercase tracking-widest ml-1">Question</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="What's on your mind?" 
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all placeholder:text-white/20"
+                                    value={pollQuestion}
+                                    onChange={(e) => setPollQuestion(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-3">
+                                <label className="text-xs font-bold text-white/40 uppercase tracking-widest ml-1">Options</label>
+                                {pollOptions.map((opt, i) => (
+                                    <input 
+                                        key={i}
+                                        type="text" 
+                                        placeholder={`Option ${i+1}`} 
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-orange-500/30 transition-all placeholder:text-white/10"
+                                        value={opt}
+                                        onChange={(e) => {
+                                            const newOps = [...pollOptions];
+                                            newOps[i] = e.target.value;
+                                            setPollOptions(newOps);
+                                        }}
+                                    />
+                                ))}
+                                {pollOptions.length < 5 && (
+                                    <button 
+                                        onClick={() => setPollOptions([...pollOptions, ''])}
+                                        className="w-full py-2.5 rounded-xl border border-dashed border-white/10 text-white/40 text-xs font-medium hover:bg-white/5 hover:text-white transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Plus size={14} /> Add Option
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                        <div className="p-4 bg-white/5 border-t border-white/5">
+                            <button 
+                                onClick={handleCreatePoll}
+                                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
+                            >
+                                Share Poll
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* AI Summary Sidebar */}
+            {showSummary && (
+                <div className="fixed inset-y-0 right-0 w-full sm:w-96 z-[100] bg-[#1C1C1E]/95 backdrop-blur-xl border-l border-white/10 shadow-2xl animate-[slideLeft_0.3s_ease-out] flex flex-col">
+                    <div className="px-6 py-6 border-b border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-[var(--color-brand-primary)]/20 p-2.5 rounded-2xl text-[var(--color-brand-primary)]">
+                                <BrainCircuit size={28} />
+                            </div>
+                            <div>
+                                <h2 className="text-xl font-bold text-white leading-tight">AI Insights</h2>
+                                <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Last 50 Messages</p>
+                            </div>
+                        </div>
+                        <button onClick={() => setShowSummary(false)} className="bg-white/5 hover:bg-white/10 p-2 rounded-full text-white/40 hover:text-white transition-all">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6 scrollbar-none">
+                        {isSummarizing ? (
+                            <div className="h-full flex flex-col items-center justify-center space-y-4">
+                                <div className="w-12 h-12 border-4 border-[var(--color-brand-primary)] border-t-transparent rounded-full animate-spin" />
+                                <p className="text-white/60 font-medium animate-pulse tracking-wide">AI is analyzing context...</p>
+                            </div>
+                        ) : (
+                            <div className="prose prose-invert max-w-none">
+                                <div className="bg-white/5 border border-white/10 rounded-3xl p-5 shadow-inner">
+                                    <div className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap font-medium">
+                                        {summaryText || "No summary available yet."}
+                                    </div>
+                                </div>
+                                <div className="mt-8 space-y-4">
+                                    <div className="flex items-center gap-2 text-white/30">
+                                        <History size={14} />
+                                        <span className="text-[10px] font-bold uppercase tracking-widest">Key Takeaways</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="bg-green-500/10 border border-green-500/20 px-3 py-2.5 rounded-2xl text-green-400 text-[11px] font-bold flex items-center gap-2">
+                                            <Check size={14} /> Decisions Made
+                                        </div>
+                                        <div className="bg-blue-500/10 border border-blue-500/20 px-3 py-2.5 rounded-2xl text-blue-400 text-[11px] font-bold flex items-center gap-2">
+                                            <ListTodo size={14} /> Pending Tasks
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Watch Together Modal */}
+            {showWatchTogether && (
+                <div className="fixed inset-0 z-[110] bg-black animate-[fadeIn_0.3s_ease-out] flex flex-col">
+                    <div className="p-4 flex items-center justify-between border-b border-white/10 bg-white/5 backdrop-blur-md">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-red-500/20 p-2 rounded-xl text-red-500">
+                                <MonitorPlay size={24} />
+                            </div>
+                            <h2 className="text-lg font-bold text-white">Watch Together</h2>
+                        </div>
+                        <button onClick={() => setShowWatchTogether(false)} className="bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-all">
+                            <X size={20} />
+                        </button>
+                    </div>
+                    <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-6">
+                        {!watchVideoUrl ? (
+                            <div className="w-full max-w-lg space-y-6 text-center">
+                                <div className="space-y-2">
+                                    <h3 className="text-2xl font-bold text-white">Enter YouTube URL</h3>
+                                    <p className="text-white/40 text-sm">Paste a link to start watching synced with your friend.</p>
+                                </div>
+                                <div className="relative group">
+                                    <input 
+                                        type="text" 
+                                        placeholder="https://www.youtube.com/watch?v=..." 
+                                        className="w-full bg-white/5 border border-white/20 rounded-3xl px-6 py-5 text-white focus:outline-none focus:ring-4 focus:ring-red-500/20 transition-all text-center text-lg"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') setWatchVideoUrl((e.target as HTMLInputElement).value);
+                                        }}
+                                    />
+                                    <div className="absolute inset-x-0 -bottom-1 h-[2px] bg-gradient-to-r from-transparent via-red-500 to-transparent scale-x-0 group-focus-within:scale-x-100 transition-transform duration-500" />
+                                </div>
+                                <p className="text-xs text-white/20">Synced playback: play/pause/seek will reflect for both users.</p>
+                            </div>
+                        ) : (
+                            <div className="w-full h-full max-w-5xl rounded-3xl overflow-hidden border border-white/10 shadow-3xl bg-black relative">
+                                <iframe 
+                                    className="w-full h-full"
+                                    src={`https://www.youtube.com/embed/${watchVideoUrl.split('v=')[1] || watchVideoUrl.split('/').pop()}?autoplay=1&enablejsapi=1`}
+                                    allow="autoplay; encrypted-media"
+                                    allowFullScreen
+                                />
+                                <div className="absolute top-4 left-4 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-tighter animate-pulse shadow-lg">LIVE SYNC</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
